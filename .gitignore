@@ -1,0 +1,16 @@
+# Node
+frontend/node_modules
+frontend/dist
+
+# Python
+backend/.venv
+backend/.mypy_cache
+backend/__pycache__/
+backend/.pytest_cache
+
+# Env
+.env
+
+# IDE
+.idea/
+.vscode/
