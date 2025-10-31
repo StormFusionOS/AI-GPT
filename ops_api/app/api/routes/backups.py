@@ -5,20 +5,15 @@ from fastapi import APIRouter, Depends
 
 from ...db import DatabaseSession
 from ...schemas.backup import BackupRunListResponse, BackupRunView
-from ...security import RoleGuard
-from ..deps import get_claims, get_db
+from ..deps import get_db, require_ops_claims
 
 router = APIRouter(prefix="/backups", tags=["backups"])
 
-_ALLOWED = RoleGuard(["SEO_ENGINEER", "DEVOPS", "OWNER"])
-
-
 @router.get("/runs", response_model=BackupRunListResponse)
 def list_backup_runs(
-    claims = Depends(get_claims),  # type: ignore[assignment]
+    claims = Depends(require_ops_claims),
     session: DatabaseSession = Depends(get_db),
 ) -> BackupRunListResponse:
-    _ALLOWED(claims)
     runs = [
         BackupRunView(
             id=run.id or 0,

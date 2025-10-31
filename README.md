@@ -11,6 +11,10 @@ This repository contains two isolated applications that share infrastructure but
 
 Each service exposes its own OpenAPI schema and enforces short-lived JWT access with role-based authorization.
 
+Reverse proxy hardening lives in `deploy/nginx/nginx.conf`. Two distinct server blocks publish
+`crm.example.com` and `ops.example.com` with CSP and origin checks that reject attempts to call
+ops endpoints from the CRM origin.
+
 ## Local Development
 
 ```bash

@@ -6,7 +6,7 @@ from typing import Any, Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.api.deps import get_claims, get_db, get_wordpress
+from app.api.deps import get_db, get_wordpress, require_ops_claims
 from app.db import DatabaseSession
 from app.models import ChangeLogEntry, Suggestion
 from app.schemas.review import (
@@ -16,10 +16,7 @@ from app.schemas.review import (
     SuggestionListResponse,
     SuggestionRecord,
 )
-from app.security import RoleGuard
 from app.services.wordpress import WordPressSite
-
-ALLOWED_ROLES = RoleGuard(["SEO_ENGINEER", "DEVOPS", "OWNER"])
 
 router = APIRouter(prefix="/review", tags=["review"])
 
@@ -28,7 +25,7 @@ _VALID_STATUS = {"pending", "approved", "rejected", "executed"}
 
 
 def _authorise(claims: Dict[str, Any]) -> str:
-    ALLOWED_ROLES(claims)
+    # claims already validated by require_ops_claims
     return str(claims.get("sub", "unknown"))
 
 
@@ -81,7 +78,7 @@ def _serialize(
 def list_suggestions(
     status: str = "pending",
     type: str | None = None,
-    claims: Dict[str, Any] = Depends(get_claims),
+    claims: Dict[str, Any] = Depends(require_ops_claims),
     session: DatabaseSession = Depends(get_db),
     site: WordPressSite = Depends(get_wordpress),
 ) -> SuggestionListResponse:
@@ -140,7 +137,7 @@ def _apply_suggestion(suggestion: Suggestion, site: WordPressSite) -> Dict[str, 
 @router.post("/{suggestion_id}/approve", response_model=ReviewActionResponse, status_code=status.HTTP_200_OK)
 def approve_suggestion(
     suggestion_id: int,
-    claims: Dict[str, Any] = Depends(get_claims),
+    claims: Dict[str, Any] = Depends(require_ops_claims),
     session: DatabaseSession = Depends(get_db),
     site: WordPressSite = Depends(get_wordpress),
 ) -> ReviewActionResponse:
@@ -178,7 +175,7 @@ def approve_suggestion(
 def reject_suggestion(
     suggestion_id: int,
     request: ReviewDecisionRequest,
-    claims: Dict[str, Any] = Depends(get_claims),
+    claims: Dict[str, Any] = Depends(require_ops_claims),
     session: DatabaseSession = Depends(get_db),
     site: WordPressSite = Depends(get_wordpress),
 ) -> ReviewActionResponse:

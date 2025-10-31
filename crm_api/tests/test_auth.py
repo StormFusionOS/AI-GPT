@@ -1,6 +1,12 @@
 """Authentication flow tests."""
 from __future__ import annotations
 
+import asyncio
+
+import pytest
+from fastapi import HTTPException
+
+from app.api.deps import require_sales_claims
 from app.api.routes.auth import login
 from app.schemas.auth import LoginRequest
 
@@ -12,8 +18,7 @@ def test_login_success(override_settings) -> None:
 
 
 def test_protected_requires_token(override_settings) -> None:
-    from app.api.routes.leads import list_contacts
-    import pytest
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(require_sales_claims({"role": "SEO_ENGINEER"}))
+    assert exc.value.status_code == 403
 
-    with pytest.raises(Exception):
-        list_contacts(authorization="invalid")

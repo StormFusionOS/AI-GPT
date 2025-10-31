@@ -3,25 +3,17 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException, status
+from typing import Dict
 
-from ...security import RoleGuard, decode_token
+from fastapi import APIRouter, Depends
 
-ALLOWED_ROLES = {"SEO_ENGINEER", "DEVOPS", "OWNER"}
+from ..deps import require_ops_claims
 
 router = APIRouter(prefix="/status", tags=["status"])
 
 
-def _authorize(authorization: str) -> None:
-    if not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing bearer token")
-    claims = decode_token(authorization.split(" ", 1)[1])
-    RoleGuard(ALLOWED_ROLES)(claims)
-
-
 @router.get("/")
-def get_status(authorization: str) -> dict[str, list[dict[str, str]]]:
-    _authorize(authorization)
+def get_status(_: Dict[str, str] = Depends(require_ops_claims)) -> dict[str, list[dict[str, str]]]:
     now = datetime.now(timezone.utc).isoformat()
     return {
         "checks": [

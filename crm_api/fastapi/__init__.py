@@ -84,3 +84,43 @@ class FastAPI:
         decorator = router.get(path)
         self.include_router(router)
         return decorator
+
+
+def Depends(dependency: Callable[..., Any]):  # type: ignore[override]
+    """Return the dependency callable for manual invocation in tests."""
+
+    return dependency
+
+
+class Query:
+    """Placeholder for query parameter metadata."""
+
+    def __init__(self, default: Any = None, **_: Any):
+        self.default = default
+
+
+class Header(Query):
+    """Header metadata wrapper (shares Query behavior)."""
+
+
+class Request:
+    """Very small request object used in webhook tests."""
+
+    def __init__(self, headers: Dict[str, Any] | None = None, body: bytes | None = None):
+        self.headers = headers or {}
+        self._body = body or b""
+
+    async def body(self) -> bytes:  # pragma: no cover - simple storage
+        return self._body
+
+
+__all__ = [
+    "APIRouter",
+    "FastAPI",
+    "HTTPException",
+    "status",
+    "Depends",
+    "Query",
+    "Header",
+    "Request",
+]

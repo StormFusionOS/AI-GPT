@@ -130,3 +130,5 @@ def db_session() -> Generator[DatabaseSession, None, None]:
 def wordpress_site():
     site = get_wordpress_site()
     return site
+
+

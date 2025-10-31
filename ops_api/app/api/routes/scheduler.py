@@ -16,20 +16,13 @@ from ...schemas.orchestrator import (
     SchedulerRunNowRequest,
     TaskName,
 )
-from ...security import RoleGuard
-from ..deps import get_claims, get_db
+from ..deps import get_db, require_ops_claims
 from ops_api.orchestrator.celery_app import celery_app
 from ops_api.orchestrator.idempotency import get_idempotency_store
 from ops_api.orchestrator.scheduler import apply_schedule_update, refresh_beat_schedule
 from .orchestrator import MODULE_MAP, PAYLOAD_SCHEMAS
 
-ALLOWED_ROLES = RoleGuard(["SEO_ENGINEER", "DEVOPS", "OWNER"])
-
 router = APIRouter(prefix="/scheduler", tags=["scheduler"])
-
-
-def _authorise(claims: Dict[str, Any]) -> None:
-    ALLOWED_ROLES(claims)
 
 
 def _to_view(config: SchedulerConfig) -> SchedulerConfigView:
@@ -47,10 +40,9 @@ def _to_view(config: SchedulerConfig) -> SchedulerConfigView:
 
 @router.get("/configs", response_model=SchedulerConfigListResponse)
 def list_configs(
-    claims: Dict[str, Any] = Depends(get_claims),
+    claims: Dict[str, Any] = Depends(require_ops_claims),
     session: DatabaseSession = Depends(get_db),
 ) -> SchedulerConfigListResponse:
-    _authorise(claims)
     configs = session.list_scheduler_configs()
     return SchedulerConfigListResponse(items=[_to_view(config) for config in configs])
 
@@ -58,10 +50,9 @@ def list_configs(
 @router.put("/configs", response_model=SchedulerConfigListResponse)
 def update_configs(
     request: SchedulerConfigUpdateRequest,
-    claims: Dict[str, Any] = Depends(get_claims),
+    claims: Dict[str, Any] = Depends(require_ops_claims),
     session: DatabaseSession = Depends(get_db),
 ) -> SchedulerConfigListResponse:
-    _authorise(claims)
     updated_by = claims.get("sub") or claims.get("email") or "ops"
     for config in request.configs:
         if config.task_name not in PAYLOAD_SCHEMAS:
@@ -80,10 +71,9 @@ def update_configs(
 @router.post("/run-now", response_model=DispatchResponse, status_code=status.HTTP_202_ACCEPTED)
 def run_now(
     request: SchedulerRunNowRequest,
-    claims: Dict[str, Any] = Depends(get_claims),
+    claims: Dict[str, Any] = Depends(require_ops_claims),
     session: DatabaseSession = Depends(get_db),
 ) -> DispatchResponse:
-    _authorise(claims)
     schema_cls = PAYLOAD_SCHEMAS.get(request.task_name)
     if schema_cls is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unknown task")

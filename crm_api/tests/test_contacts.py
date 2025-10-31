@@ -16,15 +16,15 @@ def _token() -> str:
 
 def test_create_and_list_contact(override_settings) -> None:
     token = _token()
-    contact = create_contact(ContactCreate(name="Jane", email="jane@example.com"), authorization=f"Bearer {token}")
+    contact = create_contact(ContactCreate(name="Jane", email="jane@example.com"), claims={"role": "SALES", "sub": "tester"})
     assert contact.email == "jane@example.com"
-    contacts = list_contacts(authorization=f"Bearer {token}")
+    contacts = list_contacts(claims={"role": "SALES"})
     assert any(item.email == "jane@example.com" for item in contacts)
 
 
 def test_delete_contact(override_settings) -> None:
     token = _token()
-    created = create_contact(ContactCreate(name="Mark"), authorization=f"Bearer {token}")
-    delete_contact(UUID(str(created.id)), authorization=f"Bearer {token}")
-    contacts = list_contacts(authorization=f"Bearer {token}")
+    created = create_contact(ContactCreate(name="Mark"), claims={"role": "SALES"})
+    delete_contact(UUID(str(created.id)), claims={"role": "SALES"})
+    contacts = list_contacts(claims={"role": "SALES"})
     assert all(item.id != created.id for item in contacts)

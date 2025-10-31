@@ -8,8 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from ...db import DatabaseSession
 from ...models import TaskRun
-from ...security import RoleGuard
-from ..deps import get_claims, get_db
+from ..deps import get_db, require_ops_claims
 from ...schemas.orchestrator import (
     BackupDrTestPayload,
     BackupRunPayload,
@@ -30,8 +29,6 @@ from ...schemas.orchestrator import (
 )
 from ops_api.orchestrator.celery_app import celery_app
 from ops_api.orchestrator.idempotency import get_idempotency_store
-
-ALLOWED_ROLES = RoleGuard(["SEO_ENGINEER", "DEVOPS", "OWNER"])
 
 router = APIRouter(prefix="/orchestrator", tags=["orchestrator"])
 
@@ -61,18 +58,11 @@ MODULE_MAP: Mapping[str, str] = {
     "backup_verify": "ops",
     "backup_dr_test": "ops",
 }
-
-
-def _authorise(claims: Dict[str, Any]) -> None:
-    ALLOWED_ROLES(claims)
-
-
 @router.get("/health", response_model=OrchestratorHealthResponse)
 def get_health(
-    claims: Dict[str, Any] = Depends(get_claims),
+    claims: Dict[str, Any] = Depends(require_ops_claims),
     session: DatabaseSession = Depends(get_db),
 ) -> OrchestratorHealthResponse:
-    _authorise(claims)
     results = session.list_service_health()
     services = [
         ServiceHealthView(
@@ -91,10 +81,9 @@ def get_health(
 def list_tasks(
     module: str | None = Query(default=None),
     status_filter: str | None = Query(alias="status", default=None),
-    claims: Dict[str, Any] = Depends(get_claims),
+    claims: Dict[str, Any] = Depends(require_ops_claims),
     session: DatabaseSession = Depends(get_db),
 ) -> TaskRunListResponse:
-    _authorise(claims)
     runs = session.list_task_runs(module=module, status=status_filter, limit=200)
     return TaskRunListResponse(
         items=[
@@ -117,10 +106,9 @@ def list_tasks(
 @router.post("/dispatch", response_model=DispatchResponse, status_code=status.HTTP_202_ACCEPTED)
 def dispatch_task(
     request: DispatchRequest,
-    claims: Dict[str, Any] = Depends(get_claims),
+    claims: Dict[str, Any] = Depends(require_ops_claims),
     session: DatabaseSession = Depends(get_db),
 ) -> DispatchResponse:
-    _authorise(claims)
     schema_cls = PAYLOAD_SCHEMAS.get(request.name)
     if schema_cls is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unknown task")

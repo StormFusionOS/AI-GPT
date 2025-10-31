@@ -85,11 +85,10 @@ class FastAPI:
         decorator = router.get(path)
         self.include_router(router)
         return decorator
-class Depends:
-    """Placeholder dependency wrapper."""
+def Depends(dependency: Callable[..., Any]):  # type: ignore[override]
+    """Return the dependency callable for manual invocation in tests."""
 
-    def __init__(self, dependency: Callable[..., Any]):
-        self.dependency = dependency
+    return dependency
 
 
 class Query:
@@ -101,4 +100,15 @@ class Query:
 
 class Header(Query):
     """Header metadata wrapper (shares Query behavior)."""
+
+
+__all__ = [
+    "APIRouter",
+    "FastAPI",
+    "HTTPException",
+    "status",
+    "Depends",
+    "Query",
+    "Header",
+]
 
