@@ -5,20 +5,60 @@ from collections.abc import Generator
 from pathlib import Path
 import sys
 
+import importlib
 import pytest
 
-ROOT = Path(__file__).resolve().parents[2]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
 OPS_ROOT = Path(__file__).resolve().parents[1]
 if str(OPS_ROOT) not in sys.path:
     sys.path.insert(0, str(OPS_ROOT))
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.append(str(ROOT))
+CRM_ROOT = ROOT / "crm_api"
+if str(CRM_ROOT) in sys.path:
+    sys.path.remove(str(CRM_ROOT))
+
+for module_name in [
+    "app",
+    "app.core",
+    "app.core.config",
+    "app.db",
+    "app.api",
+    "app.api.routes",
+    "app.models",
+    "test_auth",
+    "test_contacts",
+    "test_status",
+    "fastapi",
+    "fastapi.middleware",
+]:
+    sys.modules.pop(module_name, None)
+ops_package = importlib.import_module("ops_api.app")
+sys.modules["app"] = ops_package
+for submodule in [
+    "core",
+    "core.config",
+    "db",
+    "api",
+    "api.routes",
+    "models",
+    "schemas",
+]:
+    module = importlib.import_module(f"ops_api.app.{submodule}")
+    sys.modules[f"app.{submodule}"] = module
+
+fastapi_pkg = importlib.import_module("ops_api.fastapi")
+sys.modules["fastapi"] = fastapi_pkg
+for submodule in [
+    "middleware",
+    "middleware.cors",
+]:
+    module = importlib.import_module(f"ops_api.fastapi.{submodule}")
+    sys.modules[f"fastapi.{submodule}"] = module
 
 from app.core import config as config_module
 from app.core.config import Settings, get_settings
 from app.db import DatabaseSession, get_database, reset_database
-from ops_api.orchestrator import celery_app as orchestrator_app
-from ops_api.orchestrator.idempotency import get_idempotency_store
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -36,6 +76,8 @@ def override_settings() -> Generator[None, None, None]:
 
     config_module.get_settings.cache_clear()  # type: ignore[attr-defined]
     config_module.get_settings = _settings  # type: ignore[assignment]
+    from ops_api.orchestrator import celery_app as orchestrator_app
+
     previous_eager = orchestrator_app.conf.task_always_eager
     previous_propagate = orchestrator_app.conf.task_eager_propagates
     orchestrator_app.conf.task_always_eager = True
@@ -49,6 +91,8 @@ def override_settings() -> Generator[None, None, None]:
 @pytest.fixture(autouse=True)
 def clean_state() -> Generator[None, None, None]:
     reset_database()
+    from ops_api.orchestrator.idempotency import get_idempotency_store
+
     get_idempotency_store().reset()
     yield
 

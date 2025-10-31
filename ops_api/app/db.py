@@ -5,7 +5,9 @@ from contextlib import contextmanager
 from threading import RLock
 from typing import Dict, Generator, List
 
+from .models.change_log import ChangeLogEntry
 from .models.service_health import ServiceHealth
+from .models.suggestion import Suggestion
 from .models.task_runs import TaskRun
 
 
@@ -16,17 +18,25 @@ class _Database:
         self._lock = RLock()
         self._task_runs: Dict[int, TaskRun] = {}
         self._service_health: Dict[int, ServiceHealth] = {}
+        self._suggestions: Dict[int, Suggestion] = {}
+        self._change_log: Dict[int, ChangeLogEntry] = {}
         self._service_index: Dict[str, int] = {}
         self._task_seq = 0
         self._service_seq = 0
+        self._suggestion_seq = 0
+        self._change_log_seq = 0
 
     def reset(self) -> None:
         with self._lock:
             self._task_runs.clear()
             self._service_health.clear()
+            self._suggestions.clear()
+            self._change_log.clear()
             self._service_index.clear()
             self._task_seq = 0
             self._service_seq = 0
+            self._suggestion_seq = 0
+            self._change_log_seq = 0
 
     def add_task_run(self, run: TaskRun) -> TaskRun:
         with self._lock:
@@ -43,6 +53,30 @@ class _Database:
     def list_task_runs(self) -> List[TaskRun]:
         with self._lock:
             return list(self._task_runs.values())
+
+    def add_suggestion(self, suggestion: Suggestion) -> Suggestion:
+        with self._lock:
+            if suggestion.id is None:
+                self._suggestion_seq += 1
+                suggestion.id = self._suggestion_seq
+            self._suggestions[suggestion.id] = suggestion
+            return suggestion
+
+    def list_suggestions(self) -> List[Suggestion]:
+        with self._lock:
+            return list(self._suggestions.values())
+
+    def add_change_log(self, entry: ChangeLogEntry) -> ChangeLogEntry:
+        with self._lock:
+            if entry.id is None:
+                self._change_log_seq += 1
+                entry.id = self._change_log_seq
+            self._change_log[entry.id] = entry
+            return entry
+
+    def list_change_log(self) -> List[ChangeLogEntry]:
+        with self._lock:
+            return list(self._change_log.values())
 
     def add_service_health(self, record: ServiceHealth) -> ServiceHealth:
         with self._lock:
@@ -77,18 +111,37 @@ class DatabaseSession:
         self._db = database
         self._closed = False
 
-    def add(self, obj: TaskRun | ServiceHealth) -> TaskRun | ServiceHealth:
-        if isinstance(obj, TaskRun):
-            return self._db.add_task_run(obj)
-        if isinstance(obj, ServiceHealth):
-            return self._db.add_service_health(obj)
+    def add(
+        self, obj: TaskRun | ServiceHealth | Suggestion | ChangeLogEntry
+    ) -> TaskRun | ServiceHealth | Suggestion | ChangeLogEntry:
+        name = obj.__class__.__name__
+        if isinstance(obj, TaskRun) or name == "TaskRun":
+            return self._db.add_task_run(obj)  # type: ignore[arg-type]
+        if isinstance(obj, ServiceHealth) or name == "ServiceHealth":
+            return self._db.add_service_health(obj)  # type: ignore[arg-type]
+        if isinstance(obj, Suggestion) or name == "Suggestion":
+            return self._db.add_suggestion(obj)  # type: ignore[arg-type]
+        if isinstance(obj, ChangeLogEntry) or name == "ChangeLogEntry":
+            return self._db.add_change_log(obj)  # type: ignore[arg-type]
         raise TypeError(f"Unsupported object type: {type(obj)}")
 
-    def get(self, model: type[TaskRun] | type[ServiceHealth], identifier: int) -> TaskRun | ServiceHealth | None:
-        if model is TaskRun:
+    def get(
+        self,
+        model: type[TaskRun]
+        | type[ServiceHealth]
+        | type[Suggestion]
+        | type[ChangeLogEntry],
+        identifier: int,
+    ) -> TaskRun | ServiceHealth | Suggestion | ChangeLogEntry | None:
+        name = getattr(model, "__name__", "")
+        if model is TaskRun or name == "TaskRun":
             return self._db.get_task_run(identifier)
-        if model is ServiceHealth:
+        if model is ServiceHealth or name == "ServiceHealth":
             return self._db.get_service_health(identifier)
+        if model is Suggestion or name == "Suggestion":
+            return next((item for item in self._db.list_suggestions() if item.id == identifier), None)
+        if model is ChangeLogEntry or name == "ChangeLogEntry":
+            return next((item for item in self._db.list_change_log() if item.id == identifier), None)
         raise TypeError("Unsupported model class")
 
     def list_task_runs(self, *, module: str | None = None, status: str | None = None, limit: int | None = None) -> List[TaskRun]:
@@ -106,6 +159,12 @@ class DatabaseSession:
 
     def get_service_health_by_name(self, service: str) -> ServiceHealth | None:
         return self._db.get_service_health_by_name(service)
+
+    def list_suggestions(self) -> List[Suggestion]:
+        return sorted(self._db.list_suggestions(), key=lambda suggestion: suggestion.created_at, reverse=True)
+
+    def list_change_log(self) -> List[ChangeLogEntry]:
+        return sorted(self._db.list_change_log(), key=lambda entry: entry.created_at, reverse=True)
 
     def commit(self) -> None:  # pragma: no cover - maintained for API compatibility
         return None

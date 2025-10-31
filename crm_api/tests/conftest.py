@@ -2,11 +2,17 @@
 from __future__ import annotations
 
 from collections.abc import Generator
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
 
 import hashlib
+import sys
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from app.core import config as config_module
 from app.core.config import Settings, get_settings
