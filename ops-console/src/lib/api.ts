@@ -33,6 +33,39 @@ export interface TaskRunListResponse {
   items: TaskRun[];
 }
 
+export type ReviewStatus = 'pending' | 'approved' | 'rejected' | 'executed';
+export type ReviewType = 'meta' | 'faq' | 'jsonld' | 'link' | string;
+
+export interface ChangeLogInfo {
+  id: number;
+  status: ReviewStatus;
+  created_at: string;
+  executed_at?: string | null;
+  executed_by?: string | null;
+  decision_reason?: string | null;
+  payload?: Record<string, unknown> | null;
+  diff_snapshot?: Record<string, unknown> | null;
+}
+
+export interface ReviewSuggestion {
+  id: number;
+  type: ReviewType;
+  target: string;
+  status: ReviewStatus;
+  created_at: string;
+  reviewed_at?: string | null;
+  reviewed_by?: string | null;
+  decision_reason?: string | null;
+  anomaly_id?: number | null;
+  payload: Record<string, unknown>;
+  change_log: ChangeLogInfo;
+  current_state: Record<string, unknown>;
+}
+
+export interface ReviewSuggestionListResponse {
+  items: ReviewSuggestion[];
+}
+
 export interface IntegrityRecord {
   path: string;
   sha256: string;
@@ -167,6 +200,39 @@ export const runScheduledTask = async (
     { task_name: taskName, payload: payload ?? {} },
     { headers: { Authorization: `Bearer ${token}` } }
   );
+};
+
+export const fetchReviewSuggestions = async (
+  token: string,
+  params?: { status?: ReviewStatus | 'all'; type?: ReviewType }
+): Promise<ReviewSuggestionListResponse> => {
+  const { data } = await api.get<{ items: ReviewSuggestion[] }>('/review/suggestions', {
+    headers: { Authorization: `Bearer ${token}` },
+    params,
+  });
+  return data;
+};
+
+export const approveSuggestion = async (token: string, id: number): Promise<ReviewSuggestion> => {
+  const { data } = await api.post<{ suggestion: ReviewSuggestion }>(
+    `/review/${id}/approve`,
+    {},
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  return data.suggestion;
+};
+
+export const rejectSuggestion = async (
+  token: string,
+  id: number,
+  decisionReason: string
+): Promise<ReviewSuggestion> => {
+  const { data } = await api.post<{ suggestion: ReviewSuggestion }>(
+    `/review/${id}/reject`,
+    { decision_reason: decisionReason },
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  return data.suggestion;
 };
 
 export default api;

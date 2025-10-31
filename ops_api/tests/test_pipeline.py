@@ -54,12 +54,14 @@ def test_pipeline_repairs_and_saves(db_session: DatabaseSession) -> None:
     suggestion = suggestions[0]
     assert suggestion.status == "pending"
     assert suggestion.payload_json["title"] == "Optimised Title"
+    assert suggestion.change_log_id is not None
 
     changes = db_session.list_change_log()
     assert len(changes) == 1
     change = changes[0]
     assert change.status == "pending"
     assert change.payload_json["suggestion_id"] == suggestion.id
+    assert change.suggestion_id == suggestion.id
 
 
 def test_pipeline_exhausts_retries(db_session: DatabaseSession) -> None:

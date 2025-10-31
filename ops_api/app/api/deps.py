@@ -7,6 +7,7 @@ from fastapi import Header, HTTPException
 
 from ..db import DatabaseSession, get_session
 from ..security import decode_token
+from ..services.wordpress import WordPressSite, get_wordpress_site
 
 
 async def get_claims(authorization: str = Header(..., alias="Authorization")) -> Dict[str, str]:
@@ -18,3 +19,7 @@ async def get_claims(authorization: str = Header(..., alias="Authorization")) ->
 
 def get_db() -> Generator[DatabaseSession, None, None]:
     yield from get_session()
+
+
+def get_wordpress() -> WordPressSite:
+    return get_wordpress_site()

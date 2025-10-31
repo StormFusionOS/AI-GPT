@@ -334,8 +334,17 @@ class DatabaseSession:
     def list_suggestions(self) -> List[Suggestion]:
         return sorted(self._db.list_suggestions(), key=lambda suggestion: suggestion.created_at, reverse=True)
 
+    def get_suggestion(self, suggestion_id: int) -> Suggestion | None:
+        return next((item for item in self._db.list_suggestions() if item.id == suggestion_id), None)
+
     def list_change_log(self) -> List[ChangeLogEntry]:
         return sorted(self._db.list_change_log(), key=lambda entry: entry.created_at, reverse=True)
+
+    def get_change_log_for_suggestion(self, suggestion_id: int) -> ChangeLogEntry | None:
+        return next(
+            (entry for entry in self._db.list_change_log() if entry.suggestion_id == suggestion_id),
+            None,
+        )
 
     def list_anomalies(self) -> List[Anomaly]:
         return sorted(self._db.list_anomalies(), key=lambda anomaly: anomaly.created_at, reverse=True)

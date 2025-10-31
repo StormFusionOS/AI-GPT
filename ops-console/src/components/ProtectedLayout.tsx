@@ -40,6 +40,16 @@ const ProtectedLayout = ({ roles }: Props) => {
             Alerts
           </NavLink>
           <NavLink
+            to="/review"
+            className={({ isActive }) =>
+              `block rounded-md px-3 py-2 ${
+                isActive ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900' : 'hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`
+            }
+          >
+            Review Queue
+          </NavLink>
+          <NavLink
             to="/job-scheduler"
             className={({ isActive }) =>
               `block rounded-md px-3 py-2 ${

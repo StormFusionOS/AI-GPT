@@ -8,6 +8,8 @@ import sys
 import importlib
 import pytest
 
+from ops_api.app.services.wordpress import get_wordpress_site, reset_wordpress_site
+
 OPS_ROOT = Path(__file__).resolve().parents[1]
 if str(OPS_ROOT) not in sys.path:
     sys.path.insert(0, str(OPS_ROOT))
@@ -40,9 +42,10 @@ for submodule in [
     "core.config",
     "db",
     "api",
-    "api.routes",
     "models",
     "schemas",
+    "schemas.review",
+    "api.routes",
 ]:
     module = importlib.import_module(f"ops_api.app.{submodule}")
     sys.modules[f"app.{submodule}"] = module
@@ -88,6 +91,7 @@ def override_settings() -> Generator[None, None, None]:
 
     config_module.get_settings.cache_clear()  # type: ignore[attr-defined]
     config_module.get_settings = _settings  # type: ignore[assignment]
+
     from ops_api.orchestrator import celery_app as orchestrator_app
 
     previous_eager = orchestrator_app.conf.task_always_eager
@@ -109,6 +113,7 @@ def clean_state() -> Generator[None, None, None]:
 
     get_idempotency_store().reset()
     refresh_beat_schedule(celery_app)
+    reset_wordpress_site()
     yield
 
 
@@ -119,3 +124,9 @@ def db_session() -> Generator[DatabaseSession, None, None]:
         yield session
     finally:
         session.close()
+
+
+@pytest.fixture()
+def wordpress_site():
+    site = get_wordpress_site()
+    return site

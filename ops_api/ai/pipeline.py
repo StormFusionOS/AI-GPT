@@ -113,8 +113,10 @@ class GenerationPipeline:
                     "diff": request.payload.get("diff"),
                 },
                 anomaly_id=request.anomaly_id,
+                suggestion_id=suggestion.id,
             )
-            self._session.add(change_log)
+            change_log = self._session.add(change_log)
+            suggestion.change_log_id = change_log.id
             return GenerationResult(suggestion=suggestion, data=model_instance)
         raise GenerationError("Max retries exceeded")
 

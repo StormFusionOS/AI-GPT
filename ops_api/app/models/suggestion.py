@@ -19,5 +19,9 @@ class Suggestion:
     payload_json: Dict[str, Any]
     status: str = "pending"
     created_at: datetime = field(default_factory=_utcnow)
+    reviewed_at: datetime | None = None
+    reviewed_by: str | None = None
+    decision_reason: str | None = None
     anomaly_id: int | None = None
+    change_log_id: int | None = None
     id: int | None = None

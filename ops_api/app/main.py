@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .api.routes import alerts, auth, backups, orchestrator, scheduler, status
+from .api.routes import alerts, auth, backups, orchestrator, review, scheduler, status
 from ..automation import router as anomaly_router
 from .core.config import get_settings
 from .db import init_db
@@ -39,6 +39,7 @@ def create_app() -> FastAPI:
     app.include_router(orchestrator.router, prefix=prefix)
     app.include_router(scheduler.router, prefix=prefix)
     app.include_router(backups.router, prefix=prefix)
+    app.include_router(review.router, prefix=prefix)
     app.include_router(security_router.router, prefix=prefix)
     app.include_router(anomaly_router, prefix=prefix)
 
