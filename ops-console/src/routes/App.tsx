@@ -4,6 +4,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import AlertsPage from '../pages/AlertsPage';
 import DashboardPage from '../pages/DashboardPage';
 import LoginPage from '../pages/LoginPage';
+import SystemHealthPage from '../pages/SystemHealth';
 import ProtectedLayout from '../components/ProtectedLayout';
 
 const queryClient = new QueryClient();
@@ -17,6 +18,7 @@ const App = () => (
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/alerts" element={<AlertsPage />} />
+        <Route path="/system-health" element={<SystemHealthPage />} />
       </Route>
     </Routes>
   </QueryClientProvider>

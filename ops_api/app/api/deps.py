@@ -1,10 +1,13 @@
 """Common dependencies for ops API."""
 from __future__ import annotations
 
-from typing import Dict
+from typing import Dict, Generator
 
 from fastapi import Header, HTTPException
 
+from sqlalchemy.orm import Session
+
+from ..db import get_session
 from ..security import decode_token
 
 
@@ -13,3 +16,7 @@ async def get_claims(authorization: str = Header(..., alias="Authorization")) ->
         raise HTTPException(status_code=401, detail="Missing bearer token")
     token = authorization.split(" ", 1)[1]
     return decode_token(token)
+
+
+def get_db() -> Generator[Session, None, None]:
+    yield from get_session()

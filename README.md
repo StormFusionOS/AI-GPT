@@ -35,3 +35,9 @@ poetry run --directory ops_api pytest
 npm test --prefix crm
 npm test --prefix ops-console
 ```
+
+Run the orchestrator worker locally once Redis or RabbitMQ is available:
+
+```bash
+poetry run --directory ops_api celery -A ops_api.celery_app worker -l info
+```

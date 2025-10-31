@@ -1,7 +1,12 @@
 """Ops auth tests."""
 from __future__ import annotations
 
-from app.api.routes import auth
+from datetime import timedelta
+
+import pytest
+
+from app.api.routes import auth, status
+from app.security import create_token
 
 
 def test_login_success(override_settings) -> None:
@@ -10,8 +15,11 @@ def test_login_success(override_settings) -> None:
 
 
 def test_status_requires_role(override_settings) -> None:
-    from app.api.routes.status import get_status
-    import pytest
-
     with pytest.raises(Exception):
-        get_status(authorization="invalid")
+        status.get_status(authorization="invalid")
+
+
+def test_status_allows_authorised_role(override_settings) -> None:
+    token = create_token({"sub": "ops@example.com", "role": "SEO_ENGINEER"}, expires_delta=timedelta(minutes=5))
+    payload = status.get_status(authorization=f"Bearer {token}")
+    assert "checks" in payload
