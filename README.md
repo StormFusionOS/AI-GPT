@@ -36,6 +36,22 @@ npm test --prefix crm
 npm test --prefix ops-console
 ```
 
+### Database migrations
+
+Autogenerate Alembic revisions per service with the shared make target:
+
+```bash
+make migrate SERVICE=crm message="add contacts audit columns"
+make migrate SERVICE=ops message="introduce scheduler weights"
+```
+
+Detect schema drift in CI or locally with:
+
+```bash
+python tools/schema_diff.py              # checks both services
+python tools/schema_diff.py --service ops
+```
+
 Run the orchestrator worker locally once Redis or RabbitMQ is available:
 
 ```bash

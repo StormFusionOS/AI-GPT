@@ -15,7 +15,7 @@ class Settings:
     secret_key: str = os.getenv("CRM_SECRET_KEY", "changeme")
     access_token_expire_minutes: int = int(os.getenv("CRM_ACCESS_TOKEN_MINUTES", "15"))
     refresh_token_expire_minutes: int = int(os.getenv("CRM_REFRESH_TOKEN_MINUTES", str(60 * 24)))
-    database_url: str = os.getenv("CRM_DATABASE_URL", "memory://crm")
+    database_url: str = os.getenv("CRM_DATABASE_URL", "sqlite:///./crm.db")
     allowed_origins: List[str] | None = None
 
     def __post_init__(self) -> None:

@@ -3,6 +3,7 @@ __pycache__/
 .env
 node_modules/
 *.sqlite3
+*.db
 crm/node_modules
 ops-console/node_modules
 crm_api/.venv
