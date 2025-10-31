@@ -5,7 +5,7 @@ import os
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 
 @dataclass
@@ -23,6 +23,12 @@ class Settings:
     celery_task_always_eager: bool = os.getenv("OPS_CELERY_EAGER", "false").lower() == "true"
     allowed_origins: List[str] | None = None
     integrity_paths: List[str] | None = None
+    backup_root: Path | None = None
+    backup_nas_path: Optional[str] = os.getenv("BACKUP_NAS_PATH")
+    backup_sync_binary: str = os.getenv("BACKUP_SYNC_BINARY", "rsync")
+    ops_pg_dsn: str = os.getenv("OPS_PG_DSN", "postgresql://ops@localhost/ops")
+    crm_pg_dsn: str = os.getenv("CRM_PG_DSN", "postgresql://crm@localhost/crm")
+    ops_pg_admin_dsn: str | None = os.getenv("OPS_PG_ADMIN_DSN")
 
     def __post_init__(self) -> None:
         if self.allowed_origins is None:
@@ -38,6 +44,11 @@ class Settings:
                     str(root / "app"),
                 ]
             self.integrity_paths = paths
+        if self.backup_root is None:
+            default_root = os.getenv("OPS_BACKUP_ROOT", "/backups")
+            self.backup_root = Path(default_root)
+        if not self.ops_pg_admin_dsn:
+            self.ops_pg_admin_dsn = self.ops_pg_dsn
 
 
 @lru_cache(maxsize=1)

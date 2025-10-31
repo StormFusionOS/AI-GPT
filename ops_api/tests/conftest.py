@@ -63,6 +63,13 @@ from app.db import DatabaseSession, get_database, reset_database
 
 @pytest.fixture(scope="session", autouse=True)
 def override_settings() -> Generator[None, None, None]:
+    artifacts = ROOT / "tmp-test-artifacts"
+    artifacts.mkdir(exist_ok=True)
+    backup_root = artifacts / "backups"
+    nas_path = artifacts / "nas"
+    backup_root.mkdir(exist_ok=True)
+    nas_path.mkdir(exist_ok=True)
+
     def _settings() -> Settings:
         return Settings(
             database_url="sqlite:///unused",
@@ -72,6 +79,11 @@ def override_settings() -> Generator[None, None, None]:
             celery_result_backend="rpc://",
             redis_url="memory://",
             celery_task_always_eager=True,
+            backup_root=backup_root,
+            backup_nas_path=str(nas_path),
+            ops_pg_dsn="postgresql://ops:pass@localhost/ops",
+            crm_pg_dsn="postgresql://crm:pass@localhost/crm",
+            ops_pg_admin_dsn="postgresql://postgres:pass@localhost/postgres",
         )
 
     config_module.get_settings.cache_clear()  # type: ignore[attr-defined]

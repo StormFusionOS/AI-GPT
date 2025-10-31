@@ -1,4 +1,6 @@
 """Expose ops routers."""
-from . import alerts, auth, orchestrator, status
+from __future__ import annotations
 
-__all__ = ["alerts", "auth", "status", "orchestrator"]
+from . import alerts, auth, backups, orchestrator, status
+
+__all__ = ["alerts", "auth", "status", "orchestrator", "backups"]

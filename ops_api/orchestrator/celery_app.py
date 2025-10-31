@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict
 
 from celery import Celery, Task
+from celery.schedules import crontab
 from celery.exceptions import Ignore
 from celery.utils.log import get_task_logger
 
@@ -23,6 +24,7 @@ celery_app = Celery(
     backend=settings.celery_result_backend,
     include=[
         "ops_api.orchestrator.tasks.seo",
+        "ops_api.orchestrator.tasks.backup",
     ],
 )
 
@@ -43,6 +45,26 @@ celery_app.conf.update(
         "ops.indexnow_ping": {"queue": "ops"},
         "ops.content_generate": {"queue": "ai"},
         "ops.schema_inject": {"queue": "wp"},
+        "ops.backup_nightly": {"queue": "ops"},
+        "ops.backup_verify": {"queue": "ops"},
+        "ops.backup_dr_test": {"queue": "ops"},
+    },
+    beat_schedule={
+        "nightly-backup": {
+            "task": "ops.backup_nightly",
+            "schedule": crontab(minute=0, hour=2),
+            "kwargs": {"payload": {}},
+        },
+        "monthly-verify": {
+            "task": "ops.backup_verify",
+            "schedule": crontab(minute=15, hour=3, day_of_month="1"),
+            "kwargs": {"payload": {}},
+        },
+        "quarterly-dr-test": {
+            "task": "ops.backup_dr_test",
+            "schedule": crontab(minute=30, hour=4, day_of_month="1", month_of_year="1,4,7,10"),
+            "kwargs": {"payload": {}},
+        },
     },
 )
 
@@ -129,4 +151,5 @@ class OrchestratorTask(Task):
 __all__ = ["celery_app", "OrchestratorTask"]
 
 # Ensure tasks are registered when the module is imported.
+from ops_api.orchestrator.tasks import backup as _backup_tasks  # noqa: F401
 from ops_api.orchestrator.tasks import seo as _seo_tasks  # noqa: F401

@@ -1,28 +1,27 @@
 """Alert endpoints."""
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends
 
-from ...security import RoleGuard, decode_token
+from ...db import DatabaseSession
+from ...models import Alert
+from ...schemas.alerts import AlertListResponse, AlertView
+from ...security import RoleGuard
+from ..deps import get_claims, get_db
 
 router = APIRouter(prefix="/alerts", tags=["alerts"])
 
-_ALLOWED = {"SEO_ENGINEER", "DEVOPS", "OWNER"}
+_ALLOWED = RoleGuard(["SEO_ENGINEER", "DEVOPS", "OWNER"])
 
 
-def _authorize(authorization: str) -> None:
-    if not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing bearer token")
-    claims = decode_token(authorization.split(" ", 1)[1])
-    RoleGuard(_ALLOWED)(claims)
-
-
-@router.get("/")
-def list_alerts(authorization: str) -> dict[str, list[dict[str, str]]]:
-    _authorize(authorization)
-    return {
-        "alerts": [
-            {"id": "1", "level": "CRITICAL", "message": "Backup overdue"},
-            {"id": "2", "level": "WARN", "message": "New plugin vulnerability"},
-        ]
-    }
+@router.get("/", response_model=AlertListResponse)
+def list_alerts(
+    claims = Depends(get_claims),  # type: ignore[assignment]
+    session: DatabaseSession = Depends(get_db),
+) -> AlertListResponse:
+    _ALLOWED(claims)
+    alerts = [
+        AlertView(id=alert.id or 0, level=alert.level, message=alert.message, created_at=alert.created_at)
+        for alert in session.list_alerts()
+    ]
+    return AlertListResponse(alerts=alerts)

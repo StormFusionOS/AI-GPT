@@ -11,6 +11,9 @@ from ...models import TaskRun
 from ...security import RoleGuard
 from ..deps import get_claims, get_db
 from ...schemas.orchestrator import (
+    BackupDrTestPayload,
+    BackupRunPayload,
+    BackupVerifyPayload,
     BacklinkRefreshPayload,
     CitationAuditPayload,
     CompetitorCrawlPayload,
@@ -41,6 +44,9 @@ PAYLOAD_SCHEMAS: Mapping[str, Any] = {
     "indexnow_ping": IndexNowPingPayload,
     "content_generate": ContentGeneratePayload,
     "schema_inject": SchemaInjectPayload,
+    "backup_nightly": BackupRunPayload,
+    "backup_verify": BackupVerifyPayload,
+    "backup_dr_test": BackupDrTestPayload,
 }
 
 MODULE_MAP: Mapping[str, str] = {
@@ -51,6 +57,9 @@ MODULE_MAP: Mapping[str, str] = {
     "indexnow_ping": "ops",
     "content_generate": "ai",
     "schema_inject": "wp",
+    "backup_nightly": "ops",
+    "backup_verify": "ops",
+    "backup_dr_test": "ops",
 }
 
 

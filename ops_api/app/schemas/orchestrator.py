@@ -49,6 +49,18 @@ class SchemaInjectPayload(BasePayload):
     schema_type: constr(strip_whitespace=True, min_length=3)
 
 
+class BackupRunPayload(BasePayload):
+    reason: constr(strip_whitespace=True, min_length=2) | None = None
+
+
+class BackupVerifyPayload(BasePayload):
+    pass
+
+
+class BackupDrTestPayload(BasePayload):
+    pass
+
+
 class DispatchRequest(BaseModel):
     name: Literal[
         "serp_sample",
@@ -58,6 +70,9 @@ class DispatchRequest(BaseModel):
         "indexnow_ping",
         "content_generate",
         "schema_inject",
+        "backup_nightly",
+        "backup_verify",
+        "backup_dr_test",
     ]
     payload: Dict[str, Any]
 

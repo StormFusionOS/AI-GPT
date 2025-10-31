@@ -67,3 +67,9 @@ def test_task_listing_filters(db_session) -> None:
     dispatch_task(request=DispatchRequest(name="serp_sample", payload=payload), claims=_auth_dict(), session=db_session)
     response = list_tasks(module="scraper", status_filter=None, claims=_auth_dict(), session=db_session)
     assert response.items
+
+
+def test_dispatch_backup_task(db_session) -> None:
+    request = DispatchRequest(name="backup_nightly", payload={})
+    response = dispatch_task(request=request, claims=_auth_dict(), session=db_session)
+    assert response.status in {"queued", "duplicate"}

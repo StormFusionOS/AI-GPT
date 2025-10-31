@@ -5,7 +5,9 @@ from contextlib import contextmanager
 from threading import RLock
 from typing import Dict, Generator, List
 
+from .models.alert import Alert
 from .models.anomaly import Anomaly
+from .models.backup_run import BackupRun
 from .models.change_log import ChangeLogEntry
 from .models.file_integrity import FileIntegrityRecord, IntegrityReport
 from .models.service_health import ServiceHealth
@@ -24,6 +26,8 @@ class _Database:
         self._change_log: Dict[int, ChangeLogEntry] = {}
         self._anomalies: Dict[int, Anomaly] = {}
         self._file_integrity: Dict[str, FileIntegrityRecord] = {}
+        self._backup_runs: Dict[int, BackupRun] = {}
+        self._alerts: Dict[int, Alert] = {}
         self._service_index: Dict[str, int] = {}
         self._integrity_report: IntegrityReport | None = None
         self._task_seq = 0
@@ -32,6 +36,8 @@ class _Database:
         self._change_log_seq = 0
         self._anomaly_seq = 0
         self._file_integrity_seq = 0
+        self._backup_seq = 0
+        self._alert_seq = 0
 
     def reset(self) -> None:
         with self._lock:
@@ -41,6 +47,8 @@ class _Database:
             self._change_log.clear()
             self._anomalies.clear()
             self._file_integrity.clear()
+            self._backup_runs.clear()
+            self._alerts.clear()
             self._service_index.clear()
             self._integrity_report = None
             self._task_seq = 0
@@ -49,6 +57,8 @@ class _Database:
             self._change_log_seq = 0
             self._anomaly_seq = 0
             self._file_integrity_seq = 0
+            self._backup_seq = 0
+            self._alert_seq = 0
 
     def add_task_run(self, run: TaskRun) -> TaskRun:
         with self._lock:
@@ -115,6 +125,30 @@ class _Database:
             self._service_index[record.service] = record.id
             return record
 
+    def add_backup_run(self, run: BackupRun) -> BackupRun:
+        with self._lock:
+            if run.id is None:
+                self._backup_seq += 1
+                run.id = self._backup_seq
+            self._backup_runs[run.id] = run
+            return run
+
+    def list_backup_runs(self) -> List[BackupRun]:
+        with self._lock:
+            return list(self._backup_runs.values())
+
+    def add_alert(self, alert: Alert) -> Alert:
+        with self._lock:
+            if alert.id is None:
+                self._alert_seq += 1
+                alert.id = self._alert_seq
+            self._alerts[alert.id] = alert
+            return alert
+
+    def list_alerts(self) -> List[Alert]:
+        with self._lock:
+            return list(self._alerts.values())
+
     def upsert_file_integrity(self, record: FileIntegrityRecord) -> FileIntegrityRecord:
         with self._lock:
             existing = self._file_integrity.get(record.path)
@@ -169,8 +203,16 @@ class DatabaseSession:
         self._closed = False
 
     def add(
-        self, obj: TaskRun | ServiceHealth | Suggestion | ChangeLogEntry | Anomaly
-    ) -> TaskRun | ServiceHealth | Suggestion | ChangeLogEntry | Anomaly:
+        self,
+        obj: TaskRun
+        | ServiceHealth
+        | Suggestion
+        | ChangeLogEntry
+        | Anomaly
+        | FileIntegrityRecord
+        | BackupRun
+        | Alert,
+    ) -> TaskRun | ServiceHealth | Suggestion | ChangeLogEntry | Anomaly | FileIntegrityRecord | BackupRun | Alert:
         name = obj.__class__.__name__
         if isinstance(obj, TaskRun) or name == "TaskRun":
             return self._db.add_task_run(obj)  # type: ignore[arg-type]
@@ -184,6 +226,10 @@ class DatabaseSession:
             return self._db.add_anomaly(obj)  # type: ignore[arg-type]
         if isinstance(obj, FileIntegrityRecord) or name == "FileIntegrityRecord":
             return self._db.upsert_file_integrity(obj)  # type: ignore[arg-type]
+        if isinstance(obj, BackupRun) or name == "BackupRun":
+            return self._db.add_backup_run(obj)  # type: ignore[arg-type]
+        if isinstance(obj, Alert) or name == "Alert":
+            return self._db.add_alert(obj)  # type: ignore[arg-type]
         raise TypeError(f"Unsupported object type: {type(obj)}")
 
     def get(
@@ -192,9 +238,11 @@ class DatabaseSession:
         | type[ServiceHealth]
         | type[Suggestion]
         | type[ChangeLogEntry]
-        | type[Anomaly],
+        | type[Anomaly]
+        | type[BackupRun]
+        | type[Alert],
         identifier: int,
-    ) -> TaskRun | ServiceHealth | Suggestion | ChangeLogEntry | Anomaly | None:
+    ) -> TaskRun | ServiceHealth | Suggestion | ChangeLogEntry | Anomaly | BackupRun | Alert | None:
         name = getattr(model, "__name__", "")
         if model is TaskRun or name == "TaskRun":
             return self._db.get_task_run(identifier)
@@ -206,6 +254,10 @@ class DatabaseSession:
             return next((item for item in self._db.list_change_log() if item.id == identifier), None)
         if model is Anomaly or name == "Anomaly":
             return self._db.get_anomaly(identifier)
+        if model is BackupRun or name == "BackupRun":
+            return next((item for item in self._db.list_backup_runs() if item.id == identifier), None)
+        if model is Alert or name == "Alert":
+            return next((item for item in self._db.list_alerts() if item.id == identifier), None)
         raise TypeError("Unsupported model class")
 
     def list_task_runs(self, *, module: str | None = None, status: str | None = None, limit: int | None = None) -> List[TaskRun]:
@@ -238,6 +290,12 @@ class DatabaseSession:
 
     def get_file_integrity(self, path: str) -> FileIntegrityRecord | None:
         return self._db.get_file_integrity(path)
+
+    def list_backup_runs(self) -> List[BackupRun]:
+        return sorted(self._db.list_backup_runs(), key=lambda run: run.started_at, reverse=True)
+
+    def list_alerts(self) -> List[Alert]:
+        return sorted(self._db.list_alerts(), key=lambda alert: alert.created_at, reverse=True)
 
     def set_integrity_report(self, report: IntegrityReport) -> None:
         self._db.set_integrity_report(report)

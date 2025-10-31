@@ -52,6 +52,22 @@ export interface SecurityHygieneResponse {
   drift: IntegrityDrift[];
 }
 
+export interface BackupRun {
+  id: number;
+  run_type: string;
+  location: string;
+  ok: boolean;
+  verify_ok?: boolean | null;
+  bytes: number;
+  message?: string | null;
+  started_at: string;
+  finished_at?: string | null;
+}
+
+export interface BackupRunListResponse {
+  items: BackupRun[];
+}
+
 export const fetchHealth = async (token: string): Promise<OrchestratorHealthResponse> => {
   const { data } = await api.get<OrchestratorHealthResponse>('/orchestrator/health', {
     headers: { Authorization: `Bearer ${token}` },
@@ -97,6 +113,13 @@ export const triggerSecurityScan = async (token: string): Promise<SecurityHygien
       headers: { Authorization: `Bearer ${token}` },
     }
   );
+  return data;
+};
+
+export const fetchBackupRuns = async (token: string): Promise<BackupRunListResponse> => {
+  const { data } = await api.get<BackupRunListResponse>('/backups/runs', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
   return data;
 };
 

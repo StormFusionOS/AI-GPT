@@ -6,6 +6,7 @@ import DashboardPage from '../pages/DashboardPage';
 import LoginPage from '../pages/LoginPage';
 import SystemHealthPage from '../pages/SystemHealth';
 import SecurityHygienePage from '../pages/SecurityHygiene';
+import BackupsPage from '../pages/BackupsPage';
 import ProtectedLayout from '../components/ProtectedLayout';
 
 const queryClient = new QueryClient();
@@ -20,6 +21,7 @@ const App = () => (
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/alerts" element={<AlertsPage />} />
         <Route path="/system-health" element={<SystemHealthPage />} />
+        <Route path="/backups" element={<BackupsPage />} />
         <Route path="/security-hygiene" element={<SecurityHygienePage />} />
       </Route>
     </Routes>
