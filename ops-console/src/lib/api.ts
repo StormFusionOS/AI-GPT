@@ -68,6 +68,21 @@ export interface BackupRunListResponse {
   items: BackupRun[];
 }
 
+export interface SchedulerConfig {
+  id: number;
+  task_name: string;
+  crontab: string;
+  enabled: boolean;
+  last_run_at?: string | null;
+  next_run_at?: string | null;
+  updated_by?: string | null;
+  updated_at: string;
+}
+
+export interface SchedulerConfigListResponse {
+  items: SchedulerConfig[];
+}
+
 export const fetchHealth = async (token: string): Promise<OrchestratorHealthResponse> => {
   const { data } = await api.get<OrchestratorHealthResponse>('/orchestrator/health', {
     headers: { Authorization: `Bearer ${token}` },
@@ -121,6 +136,37 @@ export const fetchBackupRuns = async (token: string): Promise<BackupRunListRespo
     headers: { Authorization: `Bearer ${token}` },
   });
   return data;
+};
+
+export const fetchSchedulerConfigs = async (token: string): Promise<SchedulerConfigListResponse> => {
+  const { data } = await api.get<SchedulerConfigListResponse>('/scheduler/configs', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return data;
+};
+
+export const updateSchedulerConfigs = async (
+  token: string,
+  updates: { task_name: string; crontab: string; enabled: boolean }[]
+): Promise<SchedulerConfigListResponse> => {
+  const { data } = await api.put<SchedulerConfigListResponse>(
+    '/scheduler/configs',
+    { configs: updates },
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  return data;
+};
+
+export const runScheduledTask = async (
+  token: string,
+  taskName: string,
+  payload: Record<string, unknown> | undefined = undefined
+): Promise<void> => {
+  await api.post(
+    '/scheduler/run-now',
+    { task_name: taskName, payload: payload ?? {} },
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
 };
 
 export default api;

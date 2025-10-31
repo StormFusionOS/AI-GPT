@@ -10,6 +10,7 @@ from .models.anomaly import Anomaly
 from .models.backup_run import BackupRun
 from .models.change_log import ChangeLogEntry
 from .models.file_integrity import FileIntegrityRecord, IntegrityReport
+from .models.scheduler import SchedulerConfig
 from .models.service_health import ServiceHealth
 from .models.suggestion import Suggestion
 from .models.task_runs import TaskRun
@@ -22,6 +23,7 @@ class _Database:
         self._lock = RLock()
         self._task_runs: Dict[int, TaskRun] = {}
         self._service_health: Dict[int, ServiceHealth] = {}
+        self._scheduler_configs: Dict[int, SchedulerConfig] = {}
         self._suggestions: Dict[int, Suggestion] = {}
         self._change_log: Dict[int, ChangeLogEntry] = {}
         self._anomalies: Dict[int, Anomaly] = {}
@@ -29,9 +31,11 @@ class _Database:
         self._backup_runs: Dict[int, BackupRun] = {}
         self._alerts: Dict[int, Alert] = {}
         self._service_index: Dict[str, int] = {}
+        self._scheduler_index: Dict[str, int] = {}
         self._integrity_report: IntegrityReport | None = None
         self._task_seq = 0
         self._service_seq = 0
+        self._scheduler_seq = 0
         self._suggestion_seq = 0
         self._change_log_seq = 0
         self._anomaly_seq = 0
@@ -43,6 +47,7 @@ class _Database:
         with self._lock:
             self._task_runs.clear()
             self._service_health.clear()
+            self._scheduler_configs.clear()
             self._suggestions.clear()
             self._change_log.clear()
             self._anomalies.clear()
@@ -50,9 +55,11 @@ class _Database:
             self._backup_runs.clear()
             self._alerts.clear()
             self._service_index.clear()
+            self._scheduler_index.clear()
             self._integrity_report = None
             self._task_seq = 0
             self._service_seq = 0
+            self._scheduler_seq = 0
             self._suggestion_seq = 0
             self._change_log_seq = 0
             self._anomaly_seq = 0
@@ -67,6 +74,39 @@ class _Database:
                 run.id = self._task_seq
             self._task_runs[run.id] = run
             return run
+
+    def upsert_scheduler_config(self, config: SchedulerConfig) -> SchedulerConfig:
+        with self._lock:
+            existing_id = self._scheduler_index.get(config.task_name)
+            if existing_id is not None and (config.id is None or config.id == existing_id):
+                stored = self._scheduler_configs[existing_id]
+                stored.crontab = config.crontab
+                stored.enabled = config.enabled
+                stored.last_run_at = config.last_run_at
+                stored.next_run_at = config.next_run_at
+                stored.updated_by = config.updated_by
+                stored.updated_at = config.updated_at
+                config = stored
+            else:
+                if config.id is None:
+                    self._scheduler_seq += 1
+                    config.id = self._scheduler_seq
+                self._scheduler_configs[config.id] = config
+                self._scheduler_index[config.task_name] = config.id
+            if config.id is not None:
+                self._scheduler_seq = max(self._scheduler_seq, config.id)
+            return config
+
+    def list_scheduler_configs(self) -> List[SchedulerConfig]:
+        with self._lock:
+            return list(self._scheduler_configs.values())
+
+    def get_scheduler_config_by_task(self, task_name: str) -> SchedulerConfig | None:
+        with self._lock:
+            identifier = self._scheduler_index.get(task_name)
+            if identifier is None:
+                return None
+            return self._scheduler_configs.get(identifier)
 
     def get_task_run(self, run_id: int) -> TaskRun | None:
         with self._lock:
@@ -211,8 +251,9 @@ class DatabaseSession:
         | Anomaly
         | FileIntegrityRecord
         | BackupRun
-        | Alert,
-    ) -> TaskRun | ServiceHealth | Suggestion | ChangeLogEntry | Anomaly | FileIntegrityRecord | BackupRun | Alert:
+        | Alert
+        | SchedulerConfig,
+    ) -> TaskRun | ServiceHealth | Suggestion | ChangeLogEntry | Anomaly | FileIntegrityRecord | BackupRun | Alert | SchedulerConfig:
         name = obj.__class__.__name__
         if isinstance(obj, TaskRun) or name == "TaskRun":
             return self._db.add_task_run(obj)  # type: ignore[arg-type]
@@ -230,6 +271,8 @@ class DatabaseSession:
             return self._db.add_backup_run(obj)  # type: ignore[arg-type]
         if isinstance(obj, Alert) or name == "Alert":
             return self._db.add_alert(obj)  # type: ignore[arg-type]
+        if isinstance(obj, SchedulerConfig) or name == "SchedulerConfig":
+            return self._db.upsert_scheduler_config(obj)  # type: ignore[arg-type]
         raise TypeError(f"Unsupported object type: {type(obj)}")
 
     def get(
@@ -240,9 +283,10 @@ class DatabaseSession:
         | type[ChangeLogEntry]
         | type[Anomaly]
         | type[BackupRun]
-        | type[Alert],
+        | type[Alert]
+        | type[SchedulerConfig],
         identifier: int,
-    ) -> TaskRun | ServiceHealth | Suggestion | ChangeLogEntry | Anomaly | BackupRun | Alert | None:
+    ) -> TaskRun | ServiceHealth | Suggestion | ChangeLogEntry | Anomaly | BackupRun | Alert | SchedulerConfig | None:
         name = getattr(model, "__name__", "")
         if model is TaskRun or name == "TaskRun":
             return self._db.get_task_run(identifier)
@@ -258,6 +302,8 @@ class DatabaseSession:
             return next((item for item in self._db.list_backup_runs() if item.id == identifier), None)
         if model is Alert or name == "Alert":
             return next((item for item in self._db.list_alerts() if item.id == identifier), None)
+        if model is SchedulerConfig or name == "SchedulerConfig":
+            return next((item for item in self._db.list_scheduler_configs() if item.id == identifier), None)
         raise TypeError("Unsupported model class")
 
     def list_task_runs(self, *, module: str | None = None, status: str | None = None, limit: int | None = None) -> List[TaskRun]:
@@ -275,6 +321,15 @@ class DatabaseSession:
 
     def get_service_health_by_name(self, service: str) -> ServiceHealth | None:
         return self._db.get_service_health_by_name(service)
+
+    def list_scheduler_configs(self) -> List[SchedulerConfig]:
+        return sorted(self._db.list_scheduler_configs(), key=lambda config: config.task_name)
+
+    def get_scheduler_config_by_task(self, task_name: str) -> SchedulerConfig | None:
+        return self._db.get_scheduler_config_by_task(task_name)
+
+    def save_scheduler_config(self, config: SchedulerConfig) -> SchedulerConfig:
+        return self._db.upsert_scheduler_config(config)
 
     def list_suggestions(self) -> List[Suggestion]:
         return sorted(self._db.list_suggestions(), key=lambda suggestion: suggestion.created_at, reverse=True)

@@ -7,7 +7,6 @@ from datetime import datetime, timezone
 from typing import Any, Dict
 
 from celery import Celery, Task
-from celery.schedules import crontab
 from celery.exceptions import Ignore
 from celery.utils.log import get_task_logger
 
@@ -15,6 +14,7 @@ from app.core.config import get_settings
 from app.db import session_scope
 from app.models.task_runs import TaskRun
 from ops_api.orchestrator.idempotency import get_idempotency_store
+from ops_api.orchestrator.scheduler import mark_task_completion, refresh_beat_schedule
 
 settings = get_settings()
 
@@ -49,24 +49,10 @@ celery_app.conf.update(
         "ops.backup_verify": {"queue": "ops"},
         "ops.backup_dr_test": {"queue": "ops"},
     },
-    beat_schedule={
-        "nightly-backup": {
-            "task": "ops.backup_nightly",
-            "schedule": crontab(minute=0, hour=2),
-            "kwargs": {"payload": {}},
-        },
-        "monthly-verify": {
-            "task": "ops.backup_verify",
-            "schedule": crontab(minute=15, hour=3, day_of_month="1"),
-            "kwargs": {"payload": {}},
-        },
-        "quarterly-dr-test": {
-            "task": "ops.backup_dr_test",
-            "schedule": crontab(minute=30, hour=4, day_of_month="1", month_of_year="1,4,7,10"),
-            "kwargs": {"payload": {}},
-        },
-    },
+    beat_schedule_refresh_interval=60,
 )
+
+refresh_beat_schedule(celery_app)
 
 logger = get_task_logger(__name__)
 
@@ -133,6 +119,7 @@ class OrchestratorTask(Task):
                 else:
                     message = json.dumps(retval, default=str)
                 run.mark_finished("succeeded", message=message)
+                mark_task_completion(run.task, run.finished_at)
             elif status == "RETRY":
                 run.mark_finished("retrying", message=str(exc) if exc else None)
                 run.finished_at = None
@@ -141,6 +128,7 @@ class OrchestratorTask(Task):
                 return
             else:
                 run.mark_finished("failed", message=str(exc) if exc else None)
+                mark_task_completion(run.task, run.finished_at)
 
     def exponential_retry(self, exc: Exception, **kwargs: Any) -> None:
         retries = getattr(self.request, "retries", 0) + 1

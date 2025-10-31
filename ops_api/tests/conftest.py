@@ -104,8 +104,11 @@ def override_settings() -> Generator[None, None, None]:
 def clean_state() -> Generator[None, None, None]:
     reset_database()
     from ops_api.orchestrator.idempotency import get_idempotency_store
+    from ops_api.orchestrator.celery_app import celery_app
+    from ops_api.orchestrator.scheduler import refresh_beat_schedule
 
     get_idempotency_store().reset()
+    refresh_beat_schedule(celery_app)
     yield
 
 

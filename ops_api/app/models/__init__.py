@@ -6,6 +6,7 @@ from .anomaly import Anomaly
 from .backup_run import BackupRun
 from .change_log import ChangeLogEntry
 from .file_integrity import FileIntegrityRecord, IntegrityDrift, IntegrityReport
+from .scheduler import SchedulerConfig
 from .service_health import ServiceHealth
 from .suggestion import Suggestion
 from .task_runs import TaskRun
@@ -21,4 +22,5 @@ __all__ = [
     "IntegrityReport",
     "BackupRun",
     "Alert",
+    "SchedulerConfig",
 ]

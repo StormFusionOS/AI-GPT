@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, Literal, Optional
 
-from pydantic import BaseModel, Field, HttpUrl, constr
+from pydantic import BaseModel, Field, HttpUrl, constr, validator
 
 ServiceStatus = Literal["ok", "warn", "down"]
 
@@ -61,19 +61,22 @@ class BackupDrTestPayload(BasePayload):
     pass
 
 
+TaskName = Literal[
+    "serp_sample",
+    "competitor_crawl",
+    "backlink_refresh",
+    "citation_audit",
+    "indexnow_ping",
+    "content_generate",
+    "schema_inject",
+    "backup_nightly",
+    "backup_verify",
+    "backup_dr_test",
+]
+
+
 class DispatchRequest(BaseModel):
-    name: Literal[
-        "serp_sample",
-        "competitor_crawl",
-        "backlink_refresh",
-        "citation_audit",
-        "indexnow_ping",
-        "content_generate",
-        "schema_inject",
-        "backup_nightly",
-        "backup_verify",
-        "backup_dr_test",
-    ]
+    name: TaskName
     payload: Dict[str, Any]
 
 
@@ -115,3 +118,40 @@ class ServiceHealthView(BaseModel):
 class OrchestratorHealthResponse(BaseModel):
     services: list[ServiceHealthView]
     generated_at: datetime
+
+
+class SchedulerConfigView(BaseModel):
+    id: int
+    task_name: TaskName
+    crontab: constr(strip_whitespace=True, min_length=5)
+    enabled: bool
+    last_run_at: datetime | None
+    next_run_at: datetime | None
+    updated_by: str | None
+    updated_at: datetime
+
+
+class SchedulerConfigListResponse(BaseModel):
+    items: list[SchedulerConfigView]
+
+
+class SchedulerConfigUpdate(BaseModel):
+    task_name: TaskName
+    crontab: constr(strip_whitespace=True, min_length=5)
+    enabled: bool
+
+    @validator("crontab")
+    def _validate_cron(cls, value: str) -> str:
+        parts = value.split()
+        if len(parts) != 5:
+            raise ValueError("Cron expression must contain five fields")
+        return value
+
+
+class SchedulerConfigUpdateRequest(BaseModel):
+    configs: list[SchedulerConfigUpdate]
+
+
+class SchedulerRunNowRequest(BaseModel):
+    task_name: TaskName
+    payload: Dict[str, Any] | None = None

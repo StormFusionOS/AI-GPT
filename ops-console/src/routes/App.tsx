@@ -7,6 +7,7 @@ import LoginPage from '../pages/LoginPage';
 import SystemHealthPage from '../pages/SystemHealth';
 import SecurityHygienePage from '../pages/SecurityHygiene';
 import BackupsPage from '../pages/BackupsPage';
+import JobSchedulerPage from '../pages/JobScheduler';
 import ProtectedLayout from '../components/ProtectedLayout';
 
 const queryClient = new QueryClient();
@@ -20,6 +21,7 @@ const App = () => (
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/alerts" element={<AlertsPage />} />
+        <Route path="/job-scheduler" element={<JobSchedulerPage />} />
         <Route path="/system-health" element={<SystemHealthPage />} />
         <Route path="/backups" element={<BackupsPage />} />
         <Route path="/security-hygiene" element={<SecurityHygienePage />} />

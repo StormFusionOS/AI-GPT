@@ -73,6 +73,9 @@ class APIRouter:
     def post(self, path: str, **_: Any) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
         return self._add_route("POST", path)
 
+    def put(self, path: str, **_: Any) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+        return self._add_route("PUT", path)
+
     def delete(self, path: str, **_: Any) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
         return self._add_route("DELETE", path)
 

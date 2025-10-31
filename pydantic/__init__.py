@@ -27,4 +27,11 @@ def constr(**_: Any) -> type[str]:
     return str
 
 
-__all__ = ["BaseModel", "Field", "HttpUrl", "constr"]
+def validator(*_: Any, **__: Any):  # type: ignore[override]
+    def decorator(func):
+        return func
+
+    return decorator
+
+
+__all__ = ["BaseModel", "Field", "HttpUrl", "constr", "validator"]
