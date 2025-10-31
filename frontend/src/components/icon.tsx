@@ -1,5 +1,6 @@
 import * as React from 'react';
 import {
+  Activity,
   CalendarClock,
   Globe2,
   Image as ImageIcon,
@@ -16,6 +17,7 @@ const iconMap = {
   'layout-dashboard': LayoutDashboard,
   radar: Radar,
   'calendar-clock': CalendarClock,
+  activity: Activity,
   workflow: Workflow,
   settings: Settings2,
   'settings-2': Settings2,

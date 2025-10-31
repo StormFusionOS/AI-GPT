@@ -29,6 +29,9 @@ export interface Schedule {
   cron: string;
   enabled: boolean;
   description?: string;
+  lastRun?: string | null;
+  nextRun?: string | null;
+  lastStatus?: string | null;
 }
 
 export interface Job {
@@ -102,6 +105,79 @@ export interface LogLine {
 export interface LogsResponse {
   items: LogLine[];
   nextCursor?: string;
+}
+
+export type StatusLevel = 'ok' | 'warn' | 'error';
+
+export interface StatusCheck {
+  id: string;
+  name: string;
+  status: StatusLevel;
+  message: string;
+  value?: string | null;
+  checkedAt: string;
+}
+
+export interface ResourceUsage {
+  cpuPercent: number;
+  memoryPercent: number;
+  diskPercent: number;
+  diskFreeBytes: number;
+}
+
+export interface IntegrityFinding {
+  path: string;
+  status: string;
+  message: string;
+  observedAt: string;
+}
+
+export interface WordPressPluginFinding {
+  slug: string;
+  name: string;
+  installedVersion: string;
+  latestVersion?: string | null;
+  status: string;
+  severity: 'info' | 'warning' | 'critical';
+  notes?: string | null;
+}
+
+export interface WordPressSiteReport {
+  site: string;
+  baseUrl: string;
+  checkedAt: string;
+  plugins: WordPressPluginFinding[];
+  errors: string[];
+}
+
+export interface SystemStatusResponse {
+  generatedAt: string;
+  checks: StatusCheck[];
+  resourceUsage: ResourceUsage;
+  lastBackupAt?: string | null;
+  lastScraperRunAt?: string | null;
+  integrityFindings: IntegrityFinding[];
+  wordpress: WordPressSiteReport[];
+  logSummary: {
+    appErrors: number;
+    taskErrors: number;
+  };
+}
+
+export interface LogTailResponse {
+  path: string;
+  lines: string[];
+  generatedAt: string;
+}
+
+export type AlertSeverity = 'info' | 'warning' | 'critical';
+
+export interface AlertItem {
+  id: string;
+  message: string;
+  severity: AlertSeverity;
+  source: string;
+  createdAt: string;
 }
 
 export interface BreadcrumbItem {

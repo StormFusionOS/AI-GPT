@@ -6,6 +6,7 @@ export interface NavItem {
 
 export const SCRAPER_NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard', to: '/', icon: 'layout-dashboard' },
+  { label: 'System Status', to: '/system-status', icon: 'activity' },
   { label: 'Targets', to: '/targets', icon: 'radar' },
   { label: 'Schedules', to: '/schedules', icon: 'calendar-clock' },
   { label: 'Jobs', to: '/jobs', icon: 'workflow' },

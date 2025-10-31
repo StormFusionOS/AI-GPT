@@ -11,6 +11,7 @@ import { SnapshotsPage } from '@/pages/Snapshots/SnapshotsPage';
 import { QuarantinePage } from '@/pages/Quarantine/QuarantinePage';
 import { ProxiesPage } from '@/pages/Proxies/ProxiesPage';
 import { SettingsPage } from '@/pages/Settings/SettingsPage';
+import { SystemStatusPage } from '@/pages/SystemStatus/SystemStatusPage';
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
       <Route element={<DashboardLayout />}>
         <Route index element={<DashboardPage />} />
         <Route path="targets" element={<TargetsPage />} />
+        <Route path="system-status" element={<SystemStatusPage />} />
         <Route path="schedules" element={<SchedulesPage />} />
         <Route path="jobs" element={<JobsPage />} />
         <Route path="config" element={<ConfigPage />} />

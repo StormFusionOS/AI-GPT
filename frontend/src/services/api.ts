@@ -1,8 +1,10 @@
 import axios from 'axios';
 import type {
+  AlertItem,
   ConfigPayload,
   DashboardResponse,
   Job,
+  LogTailResponse,
   LogsResponse,
   MediaListResponse,
   PaginatedJobsResponse,
@@ -12,6 +14,7 @@ import type {
   SnapshotDetail,
   SnapshotDiffResponse,
   SnapshotSummary,
+  SystemStatusResponse,
   Target,
   UserAgentEntry,
 } from '@/types';
@@ -57,8 +60,9 @@ export const api = {
     const { data } = await apiClient.post<Schedule>(`/schedules/${id}/toggle`, { enabled });
     return data;
   },
-  runScheduleNow: async (id: string): Promise<void> => {
-    await apiClient.post(`/schedules/${id}/run`, {});
+  runScheduleNow: async (id: string): Promise<Schedule> => {
+    const { data } = await apiClient.post<Schedule>(`/schedules/${id}/run`, {});
+    return data;
   },
   getJobs: async (status: string): Promise<PaginatedJobsResponse> => {
     const { data } = await apiClient.get<PaginatedJobsResponse>('/jobs', { params: { status } });
@@ -159,6 +163,25 @@ export const api = {
       .map(encodeURIComponent)
       .join('/');
     return `${normalizedBase}/media/file/${encodedPath}?root=${root}`;
+  },
+  getSystemStatus: async (): Promise<SystemStatusResponse> => {
+    const { data } = await apiClient.get<SystemStatusResponse>('/status');
+    return data;
+  },
+  getAppLogTail: async (lines: number): Promise<LogTailResponse> => {
+    const { data } = await apiClient.get<LogTailResponse>('/logs/app', { params: { lines } });
+    return data;
+  },
+  getTaskLogTail: async (lines: number): Promise<LogTailResponse> => {
+    const { data } = await apiClient.get<LogTailResponse>('/logs/tasks', { params: { lines } });
+    return data;
+  },
+  getAlerts: async (): Promise<AlertItem[]> => {
+    const { data } = await apiClient.get<AlertItem[]>('/alerts');
+    return data;
+  },
+  acknowledgeAlert: async (id: string): Promise<void> => {
+    await apiClient.post(`/alerts/${id}/acknowledge`, {});
   },
 };
 

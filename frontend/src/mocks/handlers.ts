@@ -1,10 +1,12 @@
 import { http, HttpResponse, delay } from 'msw';
 import type {
+  AlertItem,
   ConfigPayload,
   DashboardResponse,
   Job,
   JobStatus,
   LogLine,
+  LogTailResponse,
   MediaListResponse,
   PaginatedJobsResponse,
   ProxyEntry,
@@ -12,6 +14,7 @@ import type {
   Schedule,
   SnapshotDetail,
   SnapshotSummary,
+  SystemStatusResponse,
   Target,
   UserAgentEntry,
 } from '@/types';
@@ -38,6 +41,121 @@ const dashboard: DashboardResponse = {
     { domain: 'competitorcleaners.com', lastRun: new Date(Date.now() - 3600000).toISOString(), robotsStatus: 'ok', openIssues: 0 },
   ],
 };
+
+let systemStatusSnapshot: SystemStatusResponse = {
+  generatedAt: new Date().toISOString(),
+  checks: [
+    { id: 'database', name: 'PostgreSQL', status: 'ok', message: 'Responded in 14.2 ms', value: '14.2 ms', checkedAt: new Date().toISOString() },
+    { id: 'qdrant', name: 'Qdrant', status: 'ok', message: '5 collections available', value: '5', checkedAt: new Date().toISOString() },
+    { id: 'redis', name: 'Redis Broker', status: 'ok', message: 'Broker reachable', checkedAt: new Date().toISOString() },
+    { id: 'disk', name: 'Disk Usage', status: 'warn', message: '78.1% used', value: '78.1%', checkedAt: new Date().toISOString() },
+  ],
+  resourceUsage: {
+    cpuPercent: 46.5,
+    memoryPercent: 63.2,
+    diskPercent: 78.1,
+    diskFreeBytes: 320 * 1024 * 1024 * 1024,
+  },
+  lastBackupAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
+  lastScraperRunAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+  integrityFindings: [
+    {
+      path: '/app/config/.env',
+      status: 'changed',
+      message: 'Checksum differs from baseline',
+      observedAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
+    },
+  ],
+  wordpress: [
+    {
+      site: 'River City Clean',
+      baseUrl: 'https://rivercityclean.com',
+      checkedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+      plugins: [
+        {
+          slug: 'seo-by-rivercity',
+          name: 'SEO Enhancer',
+          installedVersion: '1.2.0',
+          latestVersion: '1.4.0',
+          status: 'outdated',
+          severity: 'warning',
+          notes: 'Update recommended',
+        },
+        {
+          slug: 'wordfence',
+          name: 'Wordfence Security',
+          installedVersion: '7.10.0',
+          latestVersion: '7.10.0',
+          status: 'ok',
+          severity: 'info',
+          notes: null,
+        },
+      ],
+      errors: [],
+    },
+  ],
+  logSummary: { appErrors: 1, taskErrors: 0 },
+};
+
+let appLogTail: LogTailResponse = {
+  path: '/var/log/app.log',
+  generatedAt: new Date().toISOString(),
+  lines: [
+    '2024-02-10T16:32:11Z [INFO] started background task',
+    '2024-02-10T16:32:12Z [INFO] fetching SERP snapshot for "carpet cleaning boise"',
+    '2024-02-10T16:32:13Z [WARN] transient SERP API warning: HTTP 429, retrying',
+    '2024-02-10T16:32:16Z [INFO] recovered from rate limit backoff',
+  ],
+};
+
+let taskLogTail: LogTailResponse = {
+  path: '/var/log/tasks.log',
+  generatedAt: new Date().toISOString(),
+  lines: [
+    '2024-02-10T15:12:01Z [INFO] starting backup workflow',
+    '2024-02-10T15:12:08Z [INFO] pg_dump complete',
+    '2024-02-10T15:12:45Z [INFO] media archive created (120MB)',
+    '2024-02-10T15:13:10Z [INFO] rotation complete, retained 7 archives',
+  ],
+};
+
+let activeAlerts: AlertItem[] = [
+  {
+    id: 'alert-disk',
+    message: 'Disk usage above 75% threshold',
+    severity: 'warning',
+    source: 'status:disk',
+    createdAt: new Date(Date.now() - 20 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'alert-backup',
+    message: 'No backup detected in the last 36 hours',
+    severity: 'critical',
+    source: 'backup',
+    createdAt: new Date(Date.now() - 40 * 60 * 1000).toISOString(),
+  },
+];
+
+function refreshSystemStatus(): SystemStatusResponse {
+  const now = new Date();
+  systemStatusSnapshot = {
+    ...systemStatusSnapshot,
+    generatedAt: now.toISOString(),
+    checks: systemStatusSnapshot.checks.map((check) => ({ ...check, checkedAt: now.toISOString() })),
+    resourceUsage: {
+      ...systemStatusSnapshot.resourceUsage,
+      cpuPercent: Number((40 + Math.random() * 20).toFixed(1)),
+      memoryPercent: Number((55 + Math.random() * 15).toFixed(1)),
+    },
+    logSummary: {
+      appErrors: appLogTail.lines.filter((line) => /ERROR|Exception|WARN/.test(line)).length,
+      taskErrors: taskLogTail.lines.filter((line) => /ERROR|Exception|WARN/.test(line)).length,
+    },
+  };
+  appLogTail = { ...appLogTail, generatedAt: now.toISOString() };
+  taskLogTail = { ...taskLogTail, generatedAt: now.toISOString() };
+  return systemStatusSnapshot;
+}
 
 let targets: Target[] = [
   {
@@ -82,10 +200,46 @@ let targets: Target[] = [
 ];
 
 let schedules: Schedule[] = [
-  { id: 'CITATIONS_DELTA_DAILY', name: 'Citations Delta Daily', cron: '0 1 * * *', enabled: true, description: 'Checks directories for new NAP changes.' },
-  { id: 'BACKLINK_MONITOR_WEEKLY', name: 'Backlink Monitor Weekly', cron: '0 3 * * 1', enabled: true, description: 'Fetches backlink updates for tracked domains.' },
-  { id: 'RENDER_CHECK_WEEKLY', name: 'Render Check Weekly', cron: '30 4 * * 1', enabled: false, description: 'Validates JS-required pages still render correctly.' },
-  { id: 'SERP_SAMPLER_DAILY', name: 'SERP Sampler Daily', cron: '15 * * * *', enabled: true, description: 'Captures SERP snapshots for key keywords.' },
+  {
+    id: 'CITATIONS_DELTA_DAILY',
+    name: 'Citations Delta Daily',
+    cron: '0 1 * * *',
+    enabled: true,
+    description: 'Checks directories for new NAP changes.',
+    lastRun: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
+    nextRun: new Date(Date.now() + 20 * 60 * 60 * 1000).toISOString(),
+    lastStatus: 'success',
+  },
+  {
+    id: 'BACKLINK_MONITOR_WEEKLY',
+    name: 'Backlink Monitor Weekly',
+    cron: '0 3 * * 1',
+    enabled: true,
+    description: 'Fetches backlink updates for tracked domains.',
+    lastRun: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    nextRun: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+    lastStatus: 'success',
+  },
+  {
+    id: 'RENDER_CHECK_WEEKLY',
+    name: 'Render Check Weekly',
+    cron: '30 4 * * 1',
+    enabled: false,
+    description: 'Validates JS-required pages still render correctly.',
+    lastRun: null,
+    nextRun: null,
+    lastStatus: 'disabled',
+  },
+  {
+    id: 'SERP_SAMPLER_DAILY',
+    name: 'SERP Sampler Daily',
+    cron: '15 * * * *',
+    enabled: true,
+    description: 'Captures SERP snapshots for key keywords.',
+    lastRun: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+    nextRun: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    lastStatus: 'queued',
+  },
 ];
 
 const jobStore: Record<JobStatus, Job[]> = {
@@ -401,16 +555,69 @@ const handlers = [
   http.post(`${API_BASE}/schedules/:id/toggle`, async ({ params, request }) => {
     const id = params.id as string;
     const body = (await request.json()) as { enabled: boolean };
-    schedules = schedules.map((schedule) =>
-      schedule.id === id ? { ...schedule, enabled: body.enabled } : schedule,
-    );
+    schedules = schedules.map((schedule) => {
+      if (schedule.id !== id) return schedule;
+      const nextRun = body.enabled ? new Date(Date.now() + 60 * 60 * 1000).toISOString() : null;
+      return {
+        ...schedule,
+        enabled: body.enabled,
+        nextRun,
+        lastStatus: body.enabled ? schedule.lastStatus ?? 'queued' : 'disabled',
+      };
+    });
     const updated = schedules.find((schedule) => schedule.id === id);
     await delay(NETWORK_DELAY);
     return HttpResponse.json(updated);
   }),
-  http.post(`${API_BASE}/schedules/:id/run`, async () => {
+  http.post(`${API_BASE}/schedules/:id/run`, async ({ params }) => {
+    const id = params.id as string;
+    const now = new Date();
+    schedules = schedules.map((schedule) => {
+      if (schedule.id !== id) return schedule;
+      const nextRun = schedule.enabled ? new Date(now.getTime() + 4 * 60 * 60 * 1000).toISOString() : schedule.nextRun ?? null;
+      return {
+        ...schedule,
+        lastRun: now.toISOString(),
+        nextRun,
+        lastStatus: 'queued',
+      };
+    });
+    const updated = schedules.find((schedule) => schedule.id === id);
     await delay(NETWORK_DELAY / 2);
-    return new HttpResponse(null, { status: 202 });
+    if (!updated) {
+      return new HttpResponse(null, { status: 404 });
+    }
+    return HttpResponse.json(updated);
+  }),
+  http.get(`${API_BASE}/status`, async () => {
+    await delay(NETWORK_DELAY / 2);
+    return HttpResponse.json(refreshSystemStatus());
+  }),
+  http.get(`${API_BASE}/logs/app`, async ({ request }) => {
+    const url = new URL(request.url);
+    const lines = Number(url.searchParams.get('lines') ?? '200');
+    const trimmed = appLogTail.lines.slice(-lines);
+    appLogTail = { ...appLogTail, lines: trimmed, generatedAt: new Date().toISOString() };
+    await delay(NETWORK_DELAY / 2);
+    return HttpResponse.json(appLogTail);
+  }),
+  http.get(`${API_BASE}/logs/tasks`, async ({ request }) => {
+    const url = new URL(request.url);
+    const lines = Number(url.searchParams.get('lines') ?? '200');
+    const trimmed = taskLogTail.lines.slice(-lines);
+    taskLogTail = { ...taskLogTail, lines: trimmed, generatedAt: new Date().toISOString() };
+    await delay(NETWORK_DELAY / 2);
+    return HttpResponse.json(taskLogTail);
+  }),
+  http.get(`${API_BASE}/alerts`, async () => {
+    await delay(NETWORK_DELAY / 2);
+    return HttpResponse.json(activeAlerts);
+  }),
+  http.post(`${API_BASE}/alerts/:id/acknowledge`, async ({ params }) => {
+    const id = params.id as string;
+    activeAlerts = activeAlerts.filter((alert) => alert.id !== id);
+    await delay(NETWORK_DELAY / 2);
+    return new HttpResponse(null, { status: 204 });
   }),
   http.get(`${API_BASE}/jobs`, async ({ request }) => {
     const url = new URL(request.url);

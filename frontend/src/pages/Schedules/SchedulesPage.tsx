@@ -17,7 +17,10 @@ export function SchedulesPage() {
 
   const runMutation = useMutation({
     mutationFn: api.runScheduleNow,
-    onSuccess: () => toast({ title: 'Schedule dispatched' }),
+    onSuccess: () => {
+      toast({ title: 'Schedule dispatched' });
+      queryClient.invalidateQueries({ queryKey: ['schedules'] });
+    },
   });
 
   if (isLoading) {
@@ -44,6 +47,21 @@ export function SchedulesPage() {
             <div>
               <span className="font-semibold text-foreground">Cron:</span> {schedule.cron}
             </div>
+            {schedule.nextRun && (
+              <div>
+                <span className="font-semibold text-foreground">Next run:</span> {new Date(schedule.nextRun).toLocaleString()}
+              </div>
+            )}
+            {schedule.lastRun && (
+              <div>
+                <span className="font-semibold text-foreground">Last run:</span> {new Date(schedule.lastRun).toLocaleString()}
+              </div>
+            )}
+            {schedule.lastStatus && (
+              <div>
+                <span className="font-semibold text-foreground">Last status:</span> {schedule.lastStatus}
+              </div>
+            )}
             {schedule.description && <p>{schedule.description}</p>}
             <Button
               variant="outline"
