@@ -1,12 +1,37 @@
-# AI SEO Dashboard Monorepo
+# AI SEO + CRM Platform
 
-This repository contains the frontend and backend services for the AI-driven SEO dashboard. The project is structured as a monorepo with a React + Vite frontend and a FastAPI backend.
+This repository contains two isolated applications that share infrastructure but operate with different security scopes.
 
-## Structure
+## Services
 
-- `frontend/` – Vite React application with Tailwind CSS and shadcn/ui.
-- `backend/` – FastAPI application with SQLAlchemy, Celery, Redis, and Qdrant integrations.
-- `.env.example` – Environment variables used by both services.
-- `docker-compose.yml` – Local development dependencies (PostgreSQL, Redis, Qdrant, Prometheus, Loki).
+- `crm_api/`: FastAPI service serving sales users (`SALES`, `SALES_MANAGER`, `OWNER`).
+- `ops_api/`: FastAPI service for SEO/DevOps operators (`SEO_ENGINEER`, `DEVOPS`, `OWNER`).
+- `crm/`: React single-page app for sales workflows deployed at `https://crm.example.com`.
+- `ops-console/`: React single-page app for operational tooling deployed at `https://ops.example.com`.
 
-Refer to the individual service READMEs for setup instructions.
+Each service exposes its own OpenAPI schema and enforces short-lived JWT access with role-based authorization.
+
+## Local Development
+
+```bash
+poetry install --directory crm_api
+poetry run --directory crm_api uvicorn app.main:app --reload
+
+poetry install --directory ops_api
+poetry run --directory ops_api uvicorn app.main:app --reload
+
+npm install --prefix crm
+npm run dev --prefix crm
+
+npm install --prefix ops-console
+npm run dev --prefix ops-console
+```
+
+Run automated tests with:
+
+```bash
+poetry run --directory crm_api pytest
+poetry run --directory ops_api pytest
+npm test --prefix crm
+npm test --prefix ops-console
+```

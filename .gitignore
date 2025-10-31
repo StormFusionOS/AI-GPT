@@ -1,19 +1,9 @@
-# Node
-frontend/node_modules
-frontend/dist
-client-portal/node_modules
-client-portal/dist
-
-# Python
-backend/.venv
-backend/.mypy_cache
-backend/__pycache__/
-test_suite.db
-backend/.pytest_cache
-
-# Env
+__pycache__/
+*.pyc
 .env
-
-# IDE
-.idea/
-.vscode/
+node_modules/
+*.sqlite3
+crm/node_modules
+ops-console/node_modules
+crm_api/.venv
+ops_api/.venv

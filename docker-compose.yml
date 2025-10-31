@@ -1,45 +1,22 @@
-version: "3.9"
-
+version: '3.9'
 services:
-  postgres:
+  crm-db:
     image: postgres:15-alpine
-    restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: ai_seo_dashboard
+      POSTGRES_USER: crm
+      POSTGRES_PASSWORD: crm
+      POSTGRES_DB: crm
     ports:
-      - "5432:5432"
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-
+      - '5433:5432'
+  ops-db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ops
+      POSTGRES_PASSWORD: ops
+      POSTGRES_DB: ops
+    ports:
+      - '5434:5432'
   redis:
     image: redis:7-alpine
-    restart: unless-stopped
     ports:
-      - "6379:6379"
-
-  qdrant:
-    image: qdrant/qdrant:v1.7.3
-    restart: unless-stopped
-    ports:
-      - "6333:6333"
-      - "6334:6334"
-
-  prometheus:
-    image: prom/prometheus
-    restart: unless-stopped
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./ops/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-
-  loki:
-    image: grafana/loki:2.9.6
-    restart: unless-stopped
-    ports:
-      - "3100:3100"
-    command: ["-config.file=/etc/loki/local-config.yaml"]
-
-volumes:
-  postgres-data:
+      - '6379:6379'
