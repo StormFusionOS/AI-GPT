@@ -1,22 +1,18 @@
-import { LayoutDashboard, MessagesSquare, Users, CalendarClock, Megaphone, FileText, Settings, ClipboardCheck, Inbox } from 'lucide-react';
-
-import type { UserRole } from '@/contexts/AuthContext';
-
-export interface NavigationItem {
+export interface NavItem {
   label: string;
-  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
-  path: string;
-  roles?: UserRole[];
+  to: string;
+  icon: string;
 }
 
-export const NAVIGATION_ITEMS: NavigationItem[] = [
-  { label: 'Dashboard', icon: LayoutDashboard, path: '/' },
-  { label: 'Inbox', icon: Inbox, path: '/inbox' },
-  { label: 'Leads', icon: MessagesSquare, path: '/leads' },
-  { label: 'Calendar', icon: CalendarClock, path: '/calendar' },
-  { label: 'Campaigns', icon: Megaphone, path: '/campaigns' },
-  { label: 'Quotes & Invoices', icon: FileText, path: '/quotes' },
-  { label: 'Review Queue', icon: ClipboardCheck, path: '/review-queue', roles: ['admin', 'manager', 'tech'] },
-  { label: 'Content', icon: Users, path: '/content', roles: ['admin', 'manager'] },
-  { label: 'Settings', icon: Settings, path: '/settings', roles: ['admin'] }
+export const SCRAPER_NAV_ITEMS: NavItem[] = [
+  { label: 'Dashboard', to: '/', icon: 'layout-dashboard' },
+  { label: 'Targets', to: '/targets', icon: 'radar' },
+  { label: 'Schedules', to: '/schedules', icon: 'calendar-clock' },
+  { label: 'Jobs', to: '/jobs', icon: 'workflow' },
+  { label: 'Config', to: '/config', icon: 'settings-2' },
+  { label: 'Logs', to: '/logs', icon: 'list' },
+  { label: 'Snapshots', to: '/snapshots', icon: 'image' },
+  { label: 'Quarantine', to: '/quarantine', icon: 'shield-alert' },
+  { label: 'Proxies & UAs', to: '/proxies', icon: 'globe' },
+  { label: 'Settings', to: '/settings', icon: 'sliders' },
 ];

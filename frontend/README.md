@@ -1,12 +1,31 @@
-# Frontend
+# Scraper Console
 
-## Development
+## Prerequisites
+- Node.js 18+
 
-Install dependencies and start the Vite dev server:
-
+## Getting Started
 ```bash
 npm install
 npm run dev
 ```
+The development server boots on http://localhost:5173. Mock Service Worker starts automatically in development.
 
-The frontend expects the backend to be available at the URL specified in `VITE_API_BASE_URL` (defaults to `http://localhost:8000`).
+## Production Build
+```bash
+npm run build
+npm run preview
+```
+
+## Testing
+```bash
+npm run test
+```
+
+## Linting & Formatting
+```bash
+npm run lint
+npm run format
+```
+
+## Swapping to a Real Backend
+Set `VITE_API_URL=https://crm.rivercityclean.com` (or another API endpoint) and disable MSW initialization in `src/main.tsx`.

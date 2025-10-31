@@ -1,45 +1,30 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
-
-import { ProtectedRoute } from '@/components/ProtectedRoute';
-import { DashboardLayout } from '@/layouts/DashboardLayout';
-import { CalendarPage } from '@/pages/CalendarPage';
-import { CampaignsPage } from '@/pages/CampaignsPage';
-import { ContentPage } from '@/pages/ContentPage';
-import { DashboardPage } from '@/pages/DashboardPage';
-import { InboxPage } from '@/pages/InboxPage';
-import { LeadDetailPage } from '@/pages/LeadDetailPage';
-import { LeadsPage } from '@/pages/LeadsPage';
-import { LoginPage } from '@/pages/LoginPage';
-import { QuotesPage } from '@/pages/QuotesPage';
-import { ReviewQueuePage } from '@/pages/ReviewQueuePage';
-import { SettingsPage } from '@/pages/SettingsPage';
+import { Route, Routes } from 'react-router-dom';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { DashboardPage } from '@/pages/Dashboard/DashboardPage';
+import { TargetsPage } from '@/pages/Targets/TargetsPage';
+import { SchedulesPage } from '@/pages/Schedules/SchedulesPage';
+import { JobsPage } from '@/pages/Jobs/JobsPage';
+import { ConfigPage } from '@/pages/Config/ConfigPage';
+import { LogsPage } from '@/pages/Logs/LogsPage';
+import { SnapshotsPage } from '@/pages/Snapshots/SnapshotsPage';
+import { QuarantinePage } from '@/pages/Quarantine/QuarantinePage';
+import { ProxiesPage } from '@/pages/Proxies/ProxiesPage';
+import { SettingsPage } from '@/pages/Settings/SettingsPage';
 
 function App() {
   return (
     <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route element={<ProtectedRoute />}>
-        <Route element={<DashboardLayout />}>
-          <Route index element={<DashboardPage />} />
-          <Route path="inbox" element={<InboxPage />} />
-          <Route path="leads">
-            <Route index element={<LeadsPage />} />
-            <Route path=":id" element={<LeadDetailPage />} />
-          </Route>
-          <Route path="calendar" element={<CalendarPage />} />
-          <Route path="quotes" element={<QuotesPage />} />
-          <Route path="campaigns" element={<CampaignsPage />} />
-          <Route element={<ProtectedRoute roles={['admin', 'manager', 'tech']} />}>
-            <Route path="review-queue" element={<ReviewQueuePage />} />
-          </Route>
-          <Route element={<ProtectedRoute roles={['admin', 'manager']} />}>
-            <Route path="content" element={<ContentPage />} />
-          </Route>
-          <Route element={<ProtectedRoute roles={['admin']} />}>
-            <Route path="settings" element={<SettingsPage />} />
-          </Route>
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Route>
+      <Route element={<DashboardLayout />}>
+        <Route index element={<DashboardPage />} />
+        <Route path="targets" element={<TargetsPage />} />
+        <Route path="schedules" element={<SchedulesPage />} />
+        <Route path="jobs" element={<JobsPage />} />
+        <Route path="config" element={<ConfigPage />} />
+        <Route path="logs" element={<LogsPage />} />
+        <Route path="snapshots" element={<SnapshotsPage />} />
+        <Route path="quarantine" element={<QuarantinePage />} />
+        <Route path="proxies" element={<ProxiesPage />} />
+        <Route path="settings" element={<SettingsPage />} />
       </Route>
     </Routes>
   );

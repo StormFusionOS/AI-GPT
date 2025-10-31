@@ -1,43 +1,39 @@
 import { NavLink } from 'react-router-dom';
-
-import { NAVIGATION_ITEMS } from '@/config/navigation';
-import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
+import { SCRAPER_NAV_ITEMS } from '@/config/navigation';
+import { Icon } from '@/components/icon';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 export function Sidebar() {
-  const { user } = useAuth();
   return (
-    <aside className="flex h-full w-72 flex-col border-r border-border bg-background/95">
-      <div className="flex items-center gap-2 border-b px-6 py-5">
-        <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10 text-primary">
-          <span className="text-lg font-semibold">AI</span>
+    <aside className="hidden h-screen w-64 border-r border-border bg-card text-sm md:flex">
+      <div className="flex h-full w-full flex-col">
+        <div className="flex items-center gap-2 border-b border-border px-6 py-4 text-lg font-semibold">
+          <Icon name="layout-dashboard" className="h-5 w-5" />
+          Scraper Console
         </div>
-        <div>
-          <p className="text-sm font-semibold leading-tight">AI Growth Studio</p>
-          <p className="text-xs text-muted-foreground">Admin Console</p>
-        </div>
-      </div>
-      <nav className="flex-1 space-y-1 px-3 py-4">
-        {NAVIGATION_ITEMS.filter((item) => !item.roles || (user && item.roles.includes(user.role))).map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            className={({ isActive }) =>
-              cn(
-                'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition hover:bg-muted/60 hover:text-foreground',
-                isActive && 'bg-primary/10 text-primary'
-              )
-            }
-            end={item.path === '/'}
-          >
-            <item.icon className="h-4 w-4" />
-            <span>{item.label}</span>
-          </NavLink>
-        ))}
-      </nav>
-      <div className="border-t px-6 py-4 text-xs text-muted-foreground">
-        <p className="font-medium text-foreground">Need help?</p>
-        <p>docs.ai-growth-studio.com</p>
+        <ScrollArea className="flex-1">
+          <nav className="flex flex-col gap-1 p-4">
+            <div className="px-2 pb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Scraper
+            </div>
+            {SCRAPER_NAV_ITEMS.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) =>
+                  cn(
+                    'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground',
+                    isActive && 'bg-accent text-accent-foreground',
+                  )
+                }
+              >
+                <Icon name={item.icon} className="h-4 w-4" />
+                {item.label}
+              </NavLink>
+            ))}
+          </nav>
+        </ScrollArea>
       </div>
     </aside>
   );

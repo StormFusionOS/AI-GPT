@@ -1,56 +1,20 @@
 import { Moon, Sun } from 'lucide-react';
-import { useEffect, useState } from 'react';
-
-import { Button } from './ui/button';
-
-const THEME_KEY = 'ai-seo-dashboard-theme';
-
-type Theme = 'light' | 'dark';
-
-const applyTheme = (value: Theme) => {
-  if (typeof window === 'undefined') return;
-
-  const root = window.document.documentElement;
-  root.classList.remove('light', 'dark');
-  root.classList.add(value);
-  window.localStorage.setItem(THEME_KEY, value);
-};
-
-const getStoredTheme = (): Theme | null => {
-  if (typeof window === 'undefined') return null;
-  return window.localStorage.getItem(THEME_KEY) as Theme | null;
-};
+import { Button } from '@/components/ui/button';
+import { useTheme } from '@/components/theme-provider';
 
 export function ThemeToggle() {
-  const [theme, setTheme] = useState<Theme>('light');
-
-  useEffect(() => {
-    const stored = getStoredTheme();
-    if (stored) {
-      applyTheme(stored);
-      setTheme(stored);
-    } else {
-      applyTheme('light');
-    }
-  }, []);
-
-  const toggleTheme = () => {
-    const next = theme === 'light' ? 'dark' : 'light';
-    setTheme(next);
-    applyTheme(next);
-  };
+  const { theme, setTheme } = useTheme();
+  const isDark = theme === 'dark';
 
   return (
     <Button
-      variant="outline"
+      type="button"
+      variant="ghost"
       size="icon"
-      onClick={toggleTheme}
       aria-label="Toggle theme"
-      className="relative"
+      onClick={() => setTheme(isDark ? 'light' : 'dark')}
     >
-      <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-      <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-      <span className="sr-only">Toggle theme</span>
+      {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
     </Button>
   );
 }
