@@ -25,6 +25,7 @@ from .admin import (
     PromptRunRequest,
     PromptRunResponse,
 )
+from .contact import ContactCreate, ContactRead, ContactUpdate
 
 __all__ = [
     'Appointment',
@@ -48,4 +49,7 @@ __all__ = [
     'PromptDefinitionModel',
     'PromptRunRequest',
     'PromptRunResponse',
+    'ContactCreate',
+    'ContactRead',
+    'ContactUpdate',
 ]

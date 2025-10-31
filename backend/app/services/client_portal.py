@@ -220,6 +220,14 @@ def iter_clients() -> Iterable[str]:
     return _SAMPLE_DATA.keys()
 
 
+def remove_last_interaction(client_id: str) -> None:
+    """Utility used by tests to keep the demo dataset deterministic."""
+
+    record = _require_client_record(client_id)
+    if record['interactions']:
+        record['interactions'].pop()
+
+
 def seed_with_client(profile: Profile) -> None:
     """Allow tests to register additional clients into the sample store."""
 

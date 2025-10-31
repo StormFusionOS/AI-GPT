@@ -8,6 +8,7 @@ client-portal/dist
 backend/.venv
 backend/.mypy_cache
 backend/__pycache__/
+test_suite.db
 backend/.pytest_cache
 
 # Env
