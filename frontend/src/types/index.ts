@@ -201,6 +201,80 @@ export interface MediaListResponse {
   entries: MediaEntry[];
 }
 
+export interface ContentVersion {
+  id: string;
+  label: string;
+  author: string;
+  createdAt: string;
+  content: string;
+}
+
+export interface DiffResponse {
+  contentId: string;
+  versionA: ContentVersion;
+  versionB: ContentVersion;
+}
+
+export type ReviewStatus = 'pending' | 'approved' | 'rejected' | 'applied';
+
+export interface ReviewChange {
+  id: string;
+  title: string;
+  module: string;
+  changeType: string;
+  status: ReviewStatus;
+  createdAt: string;
+  submittedBy: string;
+  summary: string;
+  contentId: string;
+  currentVersionId: string;
+  proposedVersionId: string;
+  lastReviewedAt?: string | null;
+  lastReviewedBy?: string | null;
+  metadata: Record<string, unknown>;
+}
+
+export interface AuditIssue {
+  id: string;
+  description: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  resolved: boolean;
+  recommendation?: string | null;
+}
+
+export interface AuditSummary {
+  id: string;
+  url: string;
+  auditDate: string;
+  score: number;
+  issueCount: number;
+  trend: 'improving' | 'steady' | 'declining';
+  topSeverity: 'low' | 'medium' | 'high' | 'critical';
+}
+
+export interface AuditDetail {
+  id: string;
+  url: string;
+  auditDate: string;
+  score: number;
+  summary: string;
+  issues: AuditIssue[];
+}
+
+export interface PromptDefinition {
+  name: string;
+  label: string;
+  description: string;
+  inputSchema: Record<string, unknown>;
+}
+
+export interface PromptRunResult {
+  prompt: string;
+  executedAt: string;
+  output: unknown;
+  metadata: Record<string, unknown>;
+}
+
 export interface SnapshotSummary {
   id: string;
   domain: string;

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import { KpiCard } from '@/components/KpiCard';
@@ -7,8 +8,10 @@ import { Button } from '@/components/ui/button';
 import { JobStatusBadge } from '@/components/JobStatusBadge';
 import { formatDate } from '@/lib/utils';
 import { useToast } from '@/components/ui/use-toast';
+import { PromptRunnerModal } from '@/components/PromptRunnerModal';
 
 export function DashboardPage() {
+  const [promptRunnerOpen, setPromptRunnerOpen] = useState(false);
   const { data, isLoading, isError } = useQuery({ queryKey: ['dashboard'], queryFn: api.getDashboard });
   const { toast } = useToast();
 
@@ -78,6 +81,9 @@ export function DashboardPage() {
             <Button className="w-full" variant="outline" disabled>
               Pause Crawlers
             </Button>
+            <Button className="w-full" variant="secondary" onClick={() => setPromptRunnerOpen(true)}>
+              Launch Prompt Runner
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -90,6 +96,8 @@ export function DashboardPage() {
           ))}
         </div>
       </div>
+
+      <PromptRunnerModal open={promptRunnerOpen} onOpenChange={setPromptRunnerOpen} />
     </div>
   );
 }

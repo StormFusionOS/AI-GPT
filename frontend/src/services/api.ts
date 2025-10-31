@@ -7,10 +7,16 @@ import type {
   LogTailResponse,
   LogsResponse,
   MediaListResponse,
+  DiffResponse,
   PaginatedJobsResponse,
   ProxyEntry,
+  ReviewChange,
   QuarantineEntry,
   Schedule,
+  AuditSummary,
+  AuditDetail,
+  PromptDefinition,
+  PromptRunResult,
   SnapshotDetail,
   SnapshotDiffResponse,
   SnapshotSummary,
@@ -29,12 +35,35 @@ apiClient.interceptors.request.use((config) => {
   if (!config.headers['X-User-Role']) {
     config.headers['X-User-Role'] = 'admin';
   }
+  if (!config.headers['X-Admin-Email']) {
+    config.headers['X-Admin-Email'] = 'mock.admin@ai-seo.local';
+  }
   return config;
 });
 
 export const api = {
   getDashboard: async (): Promise<DashboardResponse> => {
     const { data } = await apiClient.get<DashboardResponse>('/dashboard');
+    return data;
+  },
+  getReviewQueue: async (status?: string): Promise<ReviewChange[]> => {
+    const { data } = await apiClient.get<ReviewChange[]>('/review-queue', { params: { status } });
+    return data;
+  },
+  getReviewChange: async (id: string): Promise<ReviewChange> => {
+    const { data } = await apiClient.get<ReviewChange>(`/review-queue/${id}`);
+    return data;
+  },
+  approveReviewChange: async (id: string, note?: string): Promise<ReviewChange> => {
+    const { data } = await apiClient.post<ReviewChange>(`/review-queue/${id}/approve`, note ? { note } : {});
+    return data;
+  },
+  rejectReviewChange: async (id: string, note?: string): Promise<ReviewChange> => {
+    const { data } = await apiClient.post<ReviewChange>(`/review-queue/${id}/reject`, note ? { note } : {});
+    return data;
+  },
+  fetchDiff: async (params: { contentId: string; version1: string; version2: string }): Promise<DiffResponse> => {
+    const { data } = await apiClient.get<DiffResponse>('/review-queue/diff', { params });
     return data;
   },
   getTargets: async (): Promise<Target[]> => {
@@ -166,6 +195,25 @@ export const api = {
   },
   getSystemStatus: async (): Promise<SystemStatusResponse> => {
     const { data } = await apiClient.get<SystemStatusResponse>('/status');
+    return data;
+  },
+  getSeoAudits: async (filters?: { severity?: string; search?: string }): Promise<AuditSummary[]> => {
+    const params = Object.fromEntries(
+      Object.entries(filters ?? {}).filter(([, value]) => value !== undefined && value !== ''),
+    );
+    const { data } = await apiClient.get<AuditSummary[]>('/seo/audits', { params });
+    return data;
+  },
+  getSeoAuditDetail: async (id: string): Promise<AuditDetail> => {
+    const { data } = await apiClient.get<AuditDetail>(`/seo/audits/${id}`);
+    return data;
+  },
+  getPrompts: async (): Promise<PromptDefinition[]> => {
+    const { data } = await apiClient.get<PromptDefinition[]>('/ai/prompts');
+    return data;
+  },
+  runPrompt: async (payload: { prompt: string; parameters: Record<string, unknown> }): Promise<PromptRunResult> => {
+    const { data } = await apiClient.post<PromptRunResult>('/ai/run_prompt', payload);
     return data;
   },
   getAppLogTail: async (lines: number): Promise<LogTailResponse> => {

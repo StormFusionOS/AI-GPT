@@ -8,10 +8,16 @@ import type {
   LogLine,
   LogTailResponse,
   MediaListResponse,
+  ReviewChange,
+  DiffResponse,
   PaginatedJobsResponse,
   ProxyEntry,
   QuarantineEntry,
   Schedule,
+  AuditSummary,
+  AuditDetail,
+  PromptDefinition,
+  PromptRunResult,
   SnapshotDetail,
   SnapshotSummary,
   SystemStatusResponse,
@@ -41,6 +47,311 @@ const dashboard: DashboardResponse = {
     { domain: 'competitorcleaners.com', lastRun: new Date(Date.now() - 3600000).toISOString(), robotsStatus: 'ok', openIssues: 0 },
   ],
 };
+
+type ContentVersionRecord = DiffResponse['versionA'] & { contentId: string };
+
+const contentVersions: Record<string, ContentVersionRecord> = {
+  'content-home-v1': {
+    id: 'content-home-v1',
+    contentId: 'home-page',
+    label: 'Live Revision',
+    author: 'Alex Morgan',
+    createdAt: new Date(Date.now() - 14 * 86400000).toISOString(),
+    content:
+      '<h1>Eco-Friendly Cleaning Services</h1>\n<p>River City Clean Co. provides sustainable commercial cleaning across Sacramento.</p>\n<p>We tailor plans for offices, warehouses, and medical facilities.</p>\n<p>Call us to schedule a walkthrough and estimate.</p>',
+  },
+  'content-home-v2': {
+    id: 'content-home-v2',
+    contentId: 'home-page',
+    label: 'AI Draft',
+    author: 'AI Copilot',
+    createdAt: new Date(Date.now() - 6 * 3600000).toISOString(),
+    content:
+      '<h1>Eco-Friendly Commercial Cleaning in Sacramento</h1>\n<p>River City Clean Co. delivers certified green cleaning for offices, medical suites, and industrial campuses.</p>\n<p>Our specialists design flexible plans with transparent pricing and measurable results.</p>\n<p>Book a walkthrough to receive a customized proposal within 24 hours.</p>',
+  },
+  'schema-home-v1': {
+    id: 'schema-home-v1',
+    contentId: 'home-schema',
+    label: 'Live Schema',
+    author: 'Alex Morgan',
+    createdAt: new Date(Date.now() - 10 * 86400000).toISOString(),
+    content: JSON.stringify(
+      {
+        '@context': 'https://schema.org',
+        '@type': 'LocalBusiness',
+        name: 'River City Clean Co.',
+        address: {
+          '@type': 'PostalAddress',
+          streetAddress: '401 Market Street',
+          addressLocality: 'Sacramento',
+          addressRegion: 'CA',
+          postalCode: '94203',
+        },
+      },
+      null,
+      2,
+    ),
+  },
+  'schema-home-v2': {
+    id: 'schema-home-v2',
+    contentId: 'home-schema',
+    label: 'AI Recommendation',
+    author: 'AI Copilot',
+    createdAt: new Date(Date.now() - 2 * 3600000).toISOString(),
+    content: JSON.stringify(
+      {
+        '@context': 'https://schema.org',
+        '@type': 'LocalBusiness',
+        name: 'River City Clean Co.',
+        image: 'https://rivercityclean.com/assets/hero.jpg',
+        telephone: '+1-555-0100',
+        address: {
+          '@type': 'PostalAddress',
+          streetAddress: '401 Market Street',
+          addressLocality: 'Sacramento',
+          addressRegion: 'CA',
+          postalCode: '94203',
+        },
+        sameAs: ['https://www.facebook.com/rivercityclean', 'https://www.yelp.com/biz/river-city-clean'],
+      },
+      null,
+      2,
+    ),
+  },
+  'faq-v1': {
+    id: 'faq-v1',
+    contentId: 'faq-page',
+    label: 'Published FAQ',
+    author: 'Alex Morgan',
+    createdAt: new Date(Date.now() - 7 * 86400000).toISOString(),
+    content:
+      '<h2>How quickly can you start?</h2>\n<p>We begin new engagements within seven business days of signing.</p>\n<h2>Do you use eco-friendly products?</h2>\n<p>Yes, every cleaner is GreenSeal certified and safe for medical facilities.</p>',
+  },
+  'faq-v2': {
+    id: 'faq-v2',
+    contentId: 'faq-page',
+    label: 'AI FAQ Draft',
+    author: 'AI Copilot',
+    createdAt: new Date(Date.now() - 36 * 3600000).toISOString(),
+    content:
+      '<h2>How soon can services start?</h2>\n<p>Most clients receive their onboarding visit within five business days.</p>\n<h2>What eco certifications do you carry?</h2>\n<p>Our products are EPA Safer Choice approved and compliant with medical-grade sanitation.</p>',
+  },
+};
+
+let reviewChanges: ReviewChange[] = [
+  {
+    id: 'chg-100',
+    title: 'Homepage hero refresh',
+    module: 'content',
+    changeType: 'refresh_suggestions',
+    status: 'pending',
+    createdAt: new Date(Date.now() - 3 * 3600000).toISOString(),
+    submittedBy: 'seo_cycle',
+    summary: 'Update hero copy to emphasize sustainable commercial cleaning.',
+    contentId: 'home-page',
+    currentVersionId: 'content-home-v1',
+    proposedVersionId: 'content-home-v2',
+    metadata: { priority: 'high', pageUrl: 'https://rivercityclean.com/' },
+  },
+  {
+    id: 'chg-101',
+    title: 'Add LocalBusiness schema enhancements',
+    module: 'seo',
+    changeType: 'schema_recommendation',
+    status: 'pending',
+    createdAt: new Date(Date.now() - 2 * 3600000).toISOString(),
+    submittedBy: 'seo_cycle',
+    summary: 'Include image, telephone, and sameAs links in structured data.',
+    contentId: 'home-schema',
+    currentVersionId: 'schema-home-v1',
+    proposedVersionId: 'schema-home-v2',
+    metadata: { priority: 'medium', pageUrl: 'https://rivercityclean.com/' },
+  },
+  {
+    id: 'chg-098',
+    title: 'FAQ section refresh',
+    module: 'content',
+    changeType: 'faq_generation',
+    status: 'approved',
+    createdAt: new Date(Date.now() - 86400000).toISOString(),
+    submittedBy: 'seo_cycle',
+    summary: 'Approved FAQ updates rolled to production.',
+    contentId: 'faq-page',
+    currentVersionId: 'faq-v1',
+    proposedVersionId: 'faq-v2',
+    metadata: { priority: 'low', pageUrl: 'https://rivercityclean.com/faq' },
+    lastReviewedAt: new Date(Date.now() - 2 * 3600000).toISOString(),
+    lastReviewedBy: 'reviewer@agency.com',
+  },
+];
+
+const auditSummaries: AuditSummary[] = [
+  {
+    id: 'audit-200',
+    url: 'https://rivercityclean.com/',
+    auditDate: new Date(Date.now() - 2 * 86400000).toISOString(),
+    score: 82,
+    issueCount: 2,
+    trend: 'steady',
+    topSeverity: 'medium',
+  },
+  {
+    id: 'audit-201',
+    url: 'https://rivercityclean.com/services/warehouse-cleaning',
+    auditDate: new Date(Date.now() - 5 * 86400000).toISOString(),
+    score: 68,
+    issueCount: 2,
+    trend: 'declining',
+    topSeverity: 'high',
+  },
+  {
+    id: 'audit-202',
+    url: 'https://rivercityclean.com/blog/eco-friendly-products',
+    auditDate: new Date(Date.now() - 9 * 86400000).toISOString(),
+    score: 91,
+    issueCount: 0,
+    trend: 'improving',
+    topSeverity: 'low',
+  },
+];
+
+const auditDetails: Record<string, AuditDetail> = {
+  'audit-200': {
+    id: 'audit-200',
+    url: 'https://rivercityclean.com/',
+    auditDate: auditSummaries[0].auditDate,
+    score: 82,
+    summary: 'Homepage is healthy but schema lacks telephone property.',
+    issues: [
+      {
+        id: 'issue-500',
+        description: 'LocalBusiness schema missing telephone property.',
+        severity: 'medium',
+        resolved: false,
+        recommendation: 'Include phone number to qualify for rich results.',
+      },
+      {
+        id: 'issue-501',
+        description: 'Hero image missing descriptive alt text.',
+        severity: 'low',
+        resolved: false,
+        recommendation: 'Add alt text referencing eco-friendly cleaning services.',
+      },
+    ],
+  },
+  'audit-201': {
+    id: 'audit-201',
+    url: 'https://rivercityclean.com/services/warehouse-cleaning',
+    auditDate: auditSummaries[1].auditDate,
+    score: 68,
+    summary: 'Competitors outrank due to fresher case studies and FAQ coverage.',
+    issues: [
+      {
+        id: 'issue-510',
+        description: 'Content freshness lags competitors by six months.',
+        severity: 'high',
+        resolved: false,
+        recommendation: 'Publish updated case study and metrics.',
+      },
+      {
+        id: 'issue-511',
+        description: 'FAQ schema missing for warehouse cleaning page.',
+        severity: 'medium',
+        resolved: false,
+        recommendation: 'Add FAQ content covering turnaround times and pricing.',
+      },
+    ],
+  },
+  'audit-202': {
+    id: 'audit-202',
+    url: 'https://rivercityclean.com/blog/eco-friendly-products',
+    auditDate: auditSummaries[2].auditDate,
+    score: 91,
+    summary: 'Content refreshed in March resolved all validation warnings.',
+    issues: [
+      {
+        id: 'issue-520',
+        description: 'Structured data warnings resolved.',
+        severity: 'low',
+        resolved: true,
+        recommendation: null,
+      },
+    ],
+  },
+};
+
+const promptCatalog: PromptDefinition[] = [
+  {
+    name: 'faq_generator',
+    label: 'FAQ Generator',
+    description: 'Draft intent-aligned FAQs based on a topic and supporting context.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        topic: { type: 'string' },
+        context: { type: 'string' },
+      },
+      required: ['topic', 'context'],
+    },
+  },
+  {
+    name: 'meta_description',
+    label: 'Meta Description Rewriter',
+    description: 'Produce a 155 character snippet optimized for CTR.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string' },
+        currentDescription: { type: 'string' },
+        keywords: { type: 'string' },
+        context: { type: 'string' },
+      },
+      required: ['title', 'currentDescription'],
+    },
+  },
+  {
+    name: 'schema_recommendation',
+    label: 'Schema Recommender',
+    description: 'Suggest JSON-LD markup based on metadata and FAQs.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        metadata: { type: 'string' },
+        faqContext: { type: 'string' },
+      },
+      required: ['metadata'],
+    },
+  },
+  {
+    name: 'content_refresh',
+    label: 'Content Refresher',
+    description: 'Highlight stale sections and propose refreshed talking points.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string' },
+        content: { type: 'string' },
+        competitorNotes: { type: 'string' },
+      },
+      required: ['title', 'content'],
+    },
+  },
+  {
+    name: 'anomaly_analysis',
+    label: 'Anomaly Analyzer',
+    description: 'Explain traffic or ranking drops with hypotheses and actions.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        url: { type: 'string' },
+        symptoms: { type: 'string' },
+        metrics: { type: 'string' },
+        competitorNotes: { type: 'string' },
+      },
+      required: ['url', 'symptoms'],
+    },
+  },
+];
 
 let systemStatusSnapshot: SystemStatusResponse = {
   generatedAt: new Date().toISOString(),
@@ -509,6 +820,186 @@ registerFile(backupStore, 'backup_20240209_0100.tar.gz', {
 });
 
 const handlers = [
+  http.get(`${API_BASE}/review-queue`, async ({ request }) => {
+    const url = new URL(request.url);
+    const status = url.searchParams.get('status');
+    const filtered = reviewChanges
+      .filter((item) => (status && status !== 'all' ? item.status === status : true))
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    await delay(NETWORK_DELAY / 2);
+    return HttpResponse.json(filtered);
+  }),
+  http.get(`${API_BASE}/review-queue/:id`, async ({ params }) => {
+    const change = reviewChanges.find((item) => item.id === params.id);
+    await delay(NETWORK_DELAY / 2);
+    if (!change) {
+      return new HttpResponse(null, { status: 404 });
+    }
+    return HttpResponse.json(change);
+  }),
+  http.post(`${API_BASE}/review-queue/:id/approve`, async ({ params, request }) => {
+    const note = ((await request.json().catch(() => ({}))) as { note?: string }).note;
+    const now = new Date().toISOString();
+    reviewChanges = reviewChanges.map((item) =>
+      item.id === params.id
+        ? {
+            ...item,
+            status: 'approved',
+            lastReviewedAt: now,
+            lastReviewedBy: 'mock.admin@ai-seo.local',
+            metadata: { ...item.metadata, note: note ?? item.metadata.note },
+          }
+        : item,
+    );
+    await delay(NETWORK_DELAY / 2);
+    const updated = reviewChanges.find((item) => item.id === params.id);
+    return updated ? HttpResponse.json(updated) : new HttpResponse(null, { status: 404 });
+  }),
+  http.post(`${API_BASE}/review-queue/:id/reject`, async ({ params, request }) => {
+    const note = ((await request.json().catch(() => ({}))) as { note?: string }).note;
+    const now = new Date().toISOString();
+    reviewChanges = reviewChanges.map((item) =>
+      item.id === params.id
+        ? {
+            ...item,
+            status: 'rejected',
+            lastReviewedAt: now,
+            lastReviewedBy: 'mock.admin@ai-seo.local',
+            metadata: { ...item.metadata, note: note ?? item.metadata.note },
+          }
+        : item,
+    );
+    await delay(NETWORK_DELAY / 2);
+    const updated = reviewChanges.find((item) => item.id === params.id);
+    return updated ? HttpResponse.json(updated) : new HttpResponse(null, { status: 404 });
+  }),
+  http.get(`${API_BASE}/review-queue/diff`, async ({ request }) => {
+    const url = new URL(request.url);
+    const contentId = url.searchParams.get('contentId');
+    const version1 = url.searchParams.get('version1');
+    const version2 = url.searchParams.get('version2');
+    if (!contentId || !version1 || !version2) {
+      return new HttpResponse(null, { status: 400 });
+    }
+    const left = contentVersions[version1];
+    const right = contentVersions[version2];
+    if (!left || !right || left.contentId !== contentId || right.contentId !== contentId) {
+      return new HttpResponse(null, { status: 404 });
+    }
+    const { contentId: _a, ...versionA } = left;
+    const { contentId: _b, ...versionB } = right;
+    const payload: DiffResponse = {
+      contentId,
+      versionA,
+      versionB,
+    };
+    await delay(NETWORK_DELAY / 2);
+    return HttpResponse.json(payload);
+  }),
+  http.get(`${API_BASE}/seo/audits`, async ({ request }) => {
+    const { searchParams } = new URL(request.url);
+    const severity = searchParams.get('severity');
+    const search = searchParams.get('search');
+
+    const filtered = auditSummaries.filter((summary) => {
+      const matchesSeverity = !severity || summary.topSeverity === severity;
+      const matchesSearch = !search || summary.url.toLowerCase().includes(search.toLowerCase());
+      return matchesSeverity && matchesSearch;
+    });
+
+    await delay(NETWORK_DELAY / 2);
+    return HttpResponse.json(filtered);
+  }),
+  http.get(`${API_BASE}/seo/audits/:id`, async ({ params }) => {
+    const detail = auditDetails[params.id as string];
+    await delay(NETWORK_DELAY / 2);
+    return detail ? HttpResponse.json(detail) : new HttpResponse(null, { status: 404 });
+  }),
+  http.get(`${API_BASE}/ai/prompts`, async () => {
+    await delay(NETWORK_DELAY / 2);
+    return HttpResponse.json(promptCatalog);
+  }),
+  http.post(`${API_BASE}/ai/run_prompt`, async ({ request }) => {
+    const body = (await request.json()) as { prompt: string; parameters: Record<string, unknown> };
+    const executedAt = new Date().toISOString();
+    let output: unknown;
+    switch (body.prompt) {
+      case 'faq_generator': {
+        const topic = String(body.parameters.topic ?? 'this topic');
+        const context = String(body.parameters.context ?? '');
+        const snippets = context.split(/\n+/).filter(Boolean).slice(0, 3);
+        output = {
+          faqs: (snippets.length ? snippets : ['Provide more context to build FAQs.']).map((snippet, index) => ({
+            question: `${index + 1}. What should I know about ${topic}?`,
+            answer: snippet.trim(),
+          })),
+        };
+        break;
+      }
+      case 'meta_description': {
+        const title = String(body.parameters.title ?? 'Untitled Page');
+        const current = String(body.parameters.currentDescription ?? '');
+        const keywordsParam = body.parameters.keywords ?? '';
+        const keywordList = Array.isArray(keywordsParam)
+          ? (keywordsParam as string[])
+          : String(keywordsParam)
+              .split(',')
+              .map((item) => item.trim())
+              .filter(Boolean);
+        const suggestion = `${title} — ${current.slice(0, 80)}${keywordList.length ? ` | ${keywordList.slice(0, 2).join('/')}` : ''}`.slice(0, 155);
+        output = { title, meta_description: suggestion };
+        break;
+      }
+      case 'schema_recommendation': {
+        const metadata = String(body.parameters.metadata ?? '');
+        const faqContext = String(body.parameters.faqContext ?? '');
+        output = {
+          schema_type: faqContext ? 'FAQPage' : 'WebPage',
+          json_ld: {
+            '@context': 'https://schema.org',
+            '@type': faqContext ? 'FAQPage' : 'WebPage',
+            description: metadata.slice(0, 160),
+          },
+        };
+        break;
+      }
+      case 'content_refresh': {
+        const title = String(body.parameters.title ?? 'Untitled');
+        const content = String(body.parameters.content ?? '');
+        const competitorNotes = String(body.parameters.competitorNotes ?? '');
+        const sections = content.split(/\n\n+/).filter(Boolean).slice(0, 3);
+        output = {
+          summary: `Refresh ${title} with updated proof points and internal links.`,
+          sections_to_update: sections,
+          new_content: competitorNotes ? `Incorporate insights: ${competitorNotes.slice(0, 140)}` : undefined,
+        };
+        break;
+      }
+      case 'anomaly_analysis': {
+        const url = String(body.parameters.url ?? '');
+        const symptoms = String(body.parameters.symptoms ?? '');
+        output = {
+          hypothesis: `Ranking turbulence detected for ${url}.`,
+          potential_causes: [symptoms || 'Symptom details pending', 'Competitor refreshed core content last week'],
+          recommended_actions: [
+            'Audit internal linking to affected page',
+            'Publish updated content and request reindex',
+          ],
+        };
+        break;
+      }
+      default:
+        return HttpResponse.json({ message: 'Unsupported prompt' }, { status: 400 });
+    }
+    const response: PromptRunResult = {
+      prompt: body.prompt,
+      executedAt,
+      output,
+      metadata: { model: 'mock-msw' },
+    };
+    await delay(NETWORK_DELAY);
+    return HttpResponse.json(response);
+  }),
   http.get(`${API_BASE}/dashboard`, async () => {
     await delay(NETWORK_DELAY);
     return HttpResponse.json(dashboard);

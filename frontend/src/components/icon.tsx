@@ -2,8 +2,11 @@ import * as React from 'react';
 import {
   Activity,
   CalendarClock,
+  Code2,
+  FileSearch,
   Globe2,
   Image as ImageIcon,
+  Inbox,
   LayoutDashboard,
   List,
   Radar,
@@ -26,6 +29,9 @@ const iconMap = {
   'shield-alert': ShieldAlert,
   globe: Globe2,
   sliders: Sliders,
+  inbox: Inbox,
+  'file-search': FileSearch,
+  code: Code2,
 } as const;
 
 export type IconName = keyof typeof iconMap;

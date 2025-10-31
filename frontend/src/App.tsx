@@ -12,6 +12,9 @@ import { QuarantinePage } from '@/pages/Quarantine/QuarantinePage';
 import { ProxiesPage } from '@/pages/Proxies/ProxiesPage';
 import { SettingsPage } from '@/pages/Settings/SettingsPage';
 import { SystemStatusPage } from '@/pages/SystemStatus/SystemStatusPage';
+import { ReviewQueuePage } from '@/pages/ReviewQueue/ReviewQueuePage';
+import { SEOAuditPage } from '@/pages/SEOAudit/SEOAuditPage';
+import { DiffToolPage } from '@/pages/DevTools/DiffToolPage';
 
 function App() {
   return (
@@ -20,6 +23,9 @@ function App() {
         <Route index element={<DashboardPage />} />
         <Route path="targets" element={<TargetsPage />} />
         <Route path="system-status" element={<SystemStatusPage />} />
+        <Route path="review-queue" element={<ReviewQueuePage />} />
+        <Route path="seo-audits" element={<SEOAuditPage />} />
+        <Route path="dev-tools/diff" element={<DiffToolPage />} />
         <Route path="schedules" element={<SchedulesPage />} />
         <Route path="jobs" element={<JobsPage />} />
         <Route path="config" element={<ConfigPage />} />

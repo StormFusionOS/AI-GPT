@@ -13,6 +13,18 @@ from .client_portal import (
     LoginRequest,
     LoginResponse,
 )
+from .admin import (
+    ReviewChangeModel,
+    ReviewActionRequest,
+    ContentVersionModel,
+    DiffResponseModel,
+    AuditIssueModel,
+    AuditSummaryModel,
+    AuditDetailModel,
+    PromptDefinitionModel,
+    PromptRunRequest,
+    PromptRunResponse,
+)
 
 __all__ = [
     'Appointment',
@@ -26,4 +38,14 @@ __all__ = [
     'PasswordChangeRequest',
     'LoginRequest',
     'LoginResponse',
+    'ReviewChangeModel',
+    'ReviewActionRequest',
+    'ContentVersionModel',
+    'DiffResponseModel',
+    'AuditIssueModel',
+    'AuditSummaryModel',
+    'AuditDetailModel',
+    'PromptDefinitionModel',
+    'PromptRunRequest',
+    'PromptRunResponse',
 ]
