@@ -33,6 +33,25 @@ export interface TaskRunListResponse {
   items: TaskRun[];
 }
 
+export interface IntegrityRecord {
+  path: string;
+  sha256: string;
+  scanned_at: string;
+}
+
+export interface IntegrityDrift {
+  path: string;
+  expected_sha?: string | null;
+  observed_sha?: string | null;
+  reason: string;
+}
+
+export interface SecurityHygieneResponse {
+  last_scan: string | null;
+  records: IntegrityRecord[];
+  drift: IntegrityDrift[];
+}
+
 export const fetchHealth = async (token: string): Promise<OrchestratorHealthResponse> => {
   const { data } = await api.get<OrchestratorHealthResponse>('/orchestrator/health', {
     headers: { Authorization: `Bearer ${token}` },
@@ -61,6 +80,24 @@ export const dispatchTask = async (
     { name, payload },
     { headers: { Authorization: `Bearer ${token}` } }
   );
+};
+
+export const fetchSecurityHygiene = async (token: string): Promise<SecurityHygieneResponse> => {
+  const { data } = await api.get<SecurityHygieneResponse>('/security/hygiene', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return data;
+};
+
+export const triggerSecurityScan = async (token: string): Promise<SecurityHygieneResponse> => {
+  const { data } = await api.post<SecurityHygieneResponse>(
+    '/security/scan',
+    {},
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  );
+  return data;
 };
 
 export default api;

@@ -49,6 +49,16 @@ const ProtectedLayout = ({ roles }: Props) => {
           >
             System Health
           </NavLink>
+          <NavLink
+            to="/security-hygiene"
+            className={({ isActive }) =>
+              `block rounded-md px-3 py-2 ${
+                isActive ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900' : 'hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`
+            }
+          >
+            Security Hygiene
+          </NavLink>
         </nav>
       </aside>
       <main className="flex-1 overflow-y-auto">

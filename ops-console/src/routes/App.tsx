@@ -5,6 +5,7 @@ import AlertsPage from '../pages/AlertsPage';
 import DashboardPage from '../pages/DashboardPage';
 import LoginPage from '../pages/LoginPage';
 import SystemHealthPage from '../pages/SystemHealth';
+import SecurityHygienePage from '../pages/SecurityHygiene';
 import ProtectedLayout from '../components/ProtectedLayout';
 
 const queryClient = new QueryClient();
@@ -19,6 +20,7 @@ const App = () => (
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/alerts" element={<AlertsPage />} />
         <Route path="/system-health" element={<SystemHealthPage />} />
+        <Route path="/security-hygiene" element={<SecurityHygienePage />} />
       </Route>
     </Routes>
   </QueryClientProvider>

@@ -4,6 +4,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from functools import lru_cache
+from pathlib import Path
 from typing import List
 
 
@@ -21,10 +22,22 @@ class Settings:
     idempotency_ttl_seconds: int = int(os.getenv("OPS_IDEMPOTENCY_TTL", "3600"))
     celery_task_always_eager: bool = os.getenv("OPS_CELERY_EAGER", "false").lower() == "true"
     allowed_origins: List[str] | None = None
+    integrity_paths: List[str] | None = None
 
     def __post_init__(self) -> None:
         if self.allowed_origins is None:
             self.allowed_origins = os.getenv("OPS_ALLOWED_ORIGINS", "https://ops.example.com").split(",")
+        if self.integrity_paths is None:
+            default_paths = os.getenv("OPS_INTEGRITY_PATHS")
+            if default_paths:
+                paths = [path.strip() for path in default_paths.split(",") if path.strip()]
+            else:
+                root = Path(__file__).resolve().parents[2]
+                paths = [
+                    os.getenv("WP_PLUGIN_PATH", "/var/www/html/wp-content/plugins"),
+                    str(root / "app"),
+                ]
+            self.integrity_paths = paths
 
 
 @lru_cache(maxsize=1)

@@ -7,6 +7,7 @@ from typing import Dict, Generator, List
 
 from .models.anomaly import Anomaly
 from .models.change_log import ChangeLogEntry
+from .models.file_integrity import FileIntegrityRecord, IntegrityReport
 from .models.service_health import ServiceHealth
 from .models.suggestion import Suggestion
 from .models.task_runs import TaskRun
@@ -22,12 +23,15 @@ class _Database:
         self._suggestions: Dict[int, Suggestion] = {}
         self._change_log: Dict[int, ChangeLogEntry] = {}
         self._anomalies: Dict[int, Anomaly] = {}
+        self._file_integrity: Dict[str, FileIntegrityRecord] = {}
         self._service_index: Dict[str, int] = {}
+        self._integrity_report: IntegrityReport | None = None
         self._task_seq = 0
         self._service_seq = 0
         self._suggestion_seq = 0
         self._change_log_seq = 0
         self._anomaly_seq = 0
+        self._file_integrity_seq = 0
 
     def reset(self) -> None:
         with self._lock:
@@ -36,12 +40,15 @@ class _Database:
             self._suggestions.clear()
             self._change_log.clear()
             self._anomalies.clear()
+            self._file_integrity.clear()
             self._service_index.clear()
+            self._integrity_report = None
             self._task_seq = 0
             self._service_seq = 0
             self._suggestion_seq = 0
             self._change_log_seq = 0
             self._anomaly_seq = 0
+            self._file_integrity_seq = 0
 
     def add_task_run(self, run: TaskRun) -> TaskRun:
         with self._lock:
@@ -108,6 +115,35 @@ class _Database:
             self._service_index[record.service] = record.id
             return record
 
+    def upsert_file_integrity(self, record: FileIntegrityRecord) -> FileIntegrityRecord:
+        with self._lock:
+            existing = self._file_integrity.get(record.path)
+            if existing:
+                existing.sha256 = record.sha256
+                existing.scanned_at = record.scanned_at
+                return existing
+            if record.id is None:
+                self._file_integrity_seq += 1
+                record.id = self._file_integrity_seq
+            self._file_integrity[record.path] = record
+            return record
+
+    def get_file_integrity(self, path: str) -> FileIntegrityRecord | None:
+        with self._lock:
+            return self._file_integrity.get(path)
+
+    def list_file_integrity(self) -> List[FileIntegrityRecord]:
+        with self._lock:
+            return list(self._file_integrity.values())
+
+    def set_integrity_report(self, report: IntegrityReport) -> None:
+        with self._lock:
+            self._integrity_report = report
+
+    def get_integrity_report(self) -> IntegrityReport | None:
+        with self._lock:
+            return self._integrity_report
+
     def get_service_health(self, record_id: int) -> ServiceHealth | None:
         with self._lock:
             return self._service_health.get(record_id)
@@ -146,6 +182,8 @@ class DatabaseSession:
             return self._db.add_change_log(obj)  # type: ignore[arg-type]
         if isinstance(obj, Anomaly) or name == "Anomaly":
             return self._db.add_anomaly(obj)  # type: ignore[arg-type]
+        if isinstance(obj, FileIntegrityRecord) or name == "FileIntegrityRecord":
+            return self._db.upsert_file_integrity(obj)  # type: ignore[arg-type]
         raise TypeError(f"Unsupported object type: {type(obj)}")
 
     def get(
@@ -194,6 +232,18 @@ class DatabaseSession:
 
     def list_anomalies(self) -> List[Anomaly]:
         return sorted(self._db.list_anomalies(), key=lambda anomaly: anomaly.created_at, reverse=True)
+
+    def list_file_integrity(self) -> List[FileIntegrityRecord]:
+        return sorted(self._db.list_file_integrity(), key=lambda record: record.path)
+
+    def get_file_integrity(self, path: str) -> FileIntegrityRecord | None:
+        return self._db.get_file_integrity(path)
+
+    def set_integrity_report(self, report: IntegrityReport) -> None:
+        self._db.set_integrity_report(report)
+
+    def get_integrity_report(self) -> IntegrityReport | None:
+        return self._db.get_integrity_report()
 
     def commit(self) -> None:  # pragma: no cover - maintained for API compatibility
         return None

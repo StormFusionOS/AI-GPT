@@ -10,6 +10,7 @@ from ..automation import router as anomaly_router
 from .core.config import get_settings
 from .db import init_db
 from ..orchestrator.health import run_health_checks
+from ops_api.routers import security as security_router
 
 
 def create_app() -> FastAPI:
@@ -33,6 +34,7 @@ def create_app() -> FastAPI:
     app.include_router(status.router, prefix=prefix)
     app.include_router(alerts.router, prefix=prefix)
     app.include_router(orchestrator.router, prefix=prefix)
+    app.include_router(security_router.router, prefix=prefix)
     app.include_router(anomaly_router, prefix=prefix)
 
     @app.get("/health")
