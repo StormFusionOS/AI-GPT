@@ -8,6 +8,7 @@ const PATH_LABELS: Record<string, string> = {
   '/jobs': 'Jobs',
   '/config': 'Config',
   '/logs': 'Logs',
+  '/media': 'Media & Backups',
   '/snapshots': 'Snapshots',
   '/quarantine': 'Quarantine',
   '/proxies': 'Proxies & UAs',

@@ -11,6 +11,7 @@ export const SCRAPER_NAV_ITEMS: NavItem[] = [
   { label: 'Jobs', to: '/jobs', icon: 'workflow' },
   { label: 'Config', to: '/config', icon: 'settings-2' },
   { label: 'Logs', to: '/logs', icon: 'list' },
+  { label: 'Media & Backups', to: '/media', icon: 'folder' },
   { label: 'Snapshots', to: '/snapshots', icon: 'image' },
   { label: 'Quarantine', to: '/quarantine', icon: 'shield-alert' },
   { label: 'Proxies & UAs', to: '/proxies', icon: 'globe' },

@@ -104,6 +104,27 @@ export interface LogsResponse {
   nextCursor?: string;
 }
 
+export interface BreadcrumbItem {
+  name: string;
+  path: string;
+}
+
+export interface MediaEntry {
+  name: string;
+  path: string;
+  is_dir: boolean;
+  size: number;
+  modified_at: string;
+  mime_type: string | null;
+}
+
+export interface MediaListResponse {
+  root: 'media' | 'backup';
+  path: string;
+  breadcrumbs: BreadcrumbItem[];
+  entries: MediaEntry[];
+}
+
 export interface SnapshotSummary {
   id: string;
   domain: string;

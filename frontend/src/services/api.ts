@@ -4,6 +4,7 @@ import type {
   DashboardResponse,
   Job,
   LogsResponse,
+  MediaListResponse,
   PaginatedJobsResponse,
   ProxyEntry,
   QuarantineEntry,
@@ -22,6 +23,9 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use((config) => {
   config.headers = config.headers ?? {};
   config.headers['Content-Type'] = 'application/json';
+  if (!config.headers['X-User-Role']) {
+    config.headers['X-User-Role'] = 'admin';
+  }
   return config;
 });
 
@@ -121,6 +125,40 @@ export const api = {
   saveUserAgents: async (items: UserAgentEntry[]): Promise<UserAgentEntry[]> => {
     const { data } = await apiClient.put<UserAgentEntry[]>('/user-agents', { userAgents: items });
     return data;
+  },
+  getMediaList: async ({ root, path }: { root: 'media' | 'backup'; path?: string }): Promise<MediaListResponse> => {
+    const { data } = await apiClient.get<MediaListResponse>('/media/list', { params: { root, path } });
+    return data;
+  },
+  fetchMediaFile: async ({
+    root,
+    path,
+    responseType = 'blob',
+  }: {
+    root: 'media' | 'backup';
+    path: string;
+    responseType?: 'blob' | 'arraybuffer' | 'text';
+  }): Promise<Blob | ArrayBuffer | string> => {
+    const encodedPath = path
+      .split('/')
+      .filter(Boolean)
+      .map(encodeURIComponent)
+      .join('/');
+    const response = await apiClient.get(`/media/file/${encodedPath}`, {
+      params: { root },
+      responseType,
+    });
+    return response.data;
+  },
+  getMediaDownloadUrl: ({ root, path }: { root: 'media' | 'backup'; path: string }): string => {
+    const base = apiClient.defaults.baseURL ?? '';
+    const normalizedBase = base.endsWith('/') ? base.slice(0, -1) : base;
+    const encodedPath = path
+      .split('/')
+      .filter(Boolean)
+      .map(encodeURIComponent)
+      .join('/');
+    return `${normalizedBase}/media/file/${encodedPath}?root=${root}`;
   },
 };
 

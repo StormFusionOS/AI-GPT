@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     qdrant_url: AnyUrl = 'http://localhost:6333'
     qdrant_api_key: str | None = None
 
+    media_root: str = 'media'
+    backup_root: str = '/mnt/backup'
+    backup_retention_count: int = 7
+
 
 @lru_cache
 def get_settings() -> Settings:

@@ -5,6 +5,7 @@ import type {
   Job,
   JobStatus,
   LogLine,
+  MediaListResponse,
   PaginatedJobsResponse,
   ProxyEntry,
   QuarantineEntry,
@@ -207,6 +208,152 @@ let quarantine: QuarantineEntry[] = [
 let proxies: ProxyEntry[] = config.proxies;
 let userAgents: UserAgentEntry[] = config.userAgents.map((value) => ({ id: createId('ua'), value, lastUsed: new Date().toISOString() }));
 
+type MockDirNode = { kind: 'dir'; path: string; updatedAt: string };
+type MockFileNode = {
+  kind: 'file';
+  path: string;
+  updatedAt: string;
+  mimeType: string;
+  size: number;
+  textContent?: string;
+  binaryContent?: Uint8Array;
+};
+type MockNode = MockDirNode | MockFileNode;
+type MockStore = Map<string, MockNode>;
+
+const normalizePath = (rawPath: string): string => rawPath.replace(/^\/+|\/+$/g, '');
+
+const base64ToUint8Array = (base64: string): Uint8Array => {
+  if (typeof atob === 'function') {
+    return Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
+  }
+  const nodeBufferFactory = (globalThis as unknown as { Buffer?: { from(data: string, encoding: string): Uint8Array } }).Buffer;
+  if (nodeBufferFactory) {
+    return Uint8Array.from(nodeBufferFactory.from(base64, 'base64'));
+  }
+  throw new Error('No base64 decoder available');
+};
+
+const ensureDirectory = (store: MockStore, path: string, updatedAt?: string): MockDirNode => {
+  const normalized = normalizePath(path);
+  const iso = updatedAt ?? new Date().toISOString();
+  const existing = store.get(normalized);
+  if (existing && existing.kind === 'dir') {
+    existing.updatedAt = iso;
+    return existing;
+  }
+  const node: MockDirNode = { kind: 'dir', path: normalized, updatedAt: iso };
+  store.set(normalized, node);
+  if (normalized !== '') {
+    const parent = normalized.split('/').slice(0, -1).join('/');
+    ensureDirectory(store, parent, updatedAt);
+  }
+  return node;
+};
+
+const registerFile = (
+  store: MockStore,
+  path: string,
+  options: { mimeType: string; updatedAt?: string; textContent?: string; binaryContent?: Uint8Array; size?: number },
+): MockFileNode => {
+  const normalized = normalizePath(path);
+  const iso = options.updatedAt ?? new Date().toISOString();
+  const parent = normalized.split('/').slice(0, -1).join('/');
+  ensureDirectory(store, parent, iso);
+  const sizeFromContent = options.textContent
+    ? new TextEncoder().encode(options.textContent).length
+    : options.binaryContent?.byteLength ?? 0;
+  const node: MockFileNode = {
+    kind: 'file',
+    path: normalized,
+    updatedAt: iso,
+    mimeType: options.mimeType,
+    size: options.size ?? sizeFromContent,
+    textContent: options.textContent,
+    binaryContent: options.binaryContent,
+  };
+  store.set(normalized, node);
+  return node;
+};
+
+const listDirectoryEntries = (store: MockStore, path: string): MockNode[] => {
+  const normalized = normalizePath(path);
+  ensureDirectory(store, normalized);
+  const prefix = normalized ? `${normalized}/` : '';
+  const children = new Map<string, MockNode>();
+  for (const node of store.values()) {
+    if (node.path === normalized) continue;
+    if (!node.path.startsWith(prefix)) continue;
+    const remainder = node.path.slice(prefix.length);
+    if (!remainder) continue;
+    const [segment] = remainder.split('/');
+    const childPath = normalizePath(prefix + segment);
+    if (!children.has(childPath)) {
+      const childNode = store.get(childPath);
+      if (childNode) children.set(childPath, childNode);
+    }
+  }
+  return Array.from(children.values()).sort((a, b) => {
+    const aDir = a.kind === 'dir';
+    const bDir = b.kind === 'dir';
+    if (aDir !== bDir) return aDir ? -1 : 1;
+    const aName = a.path.split('/').pop() ?? a.path;
+    const bName = b.path.split('/').pop() ?? b.path;
+    return aName.localeCompare(bName);
+  });
+};
+
+const buildBreadcrumbs = (root: 'media' | 'backup', path: string) => {
+  const crumbs: MediaListResponse['breadcrumbs'] = [
+    { name: root === 'media' ? 'Media' : 'Backups', path: '' },
+  ];
+  if (!path) return crumbs;
+  const segments = normalizePath(path).split('/');
+  let current = '';
+  for (const segment of segments) {
+    current = current ? `${current}/${segment}` : segment;
+    crumbs.push({ name: segment, path: current });
+  }
+  return crumbs;
+};
+
+const getFileNode = (store: MockStore, path: string): MockFileNode | undefined => {
+  const node = store.get(normalizePath(path));
+  return node && node.kind === 'file' ? node : undefined;
+};
+
+const PLACEHOLDER_PNG = base64ToUint8Array(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGD4DwABBAEAAP/XN60AAAAASUVORK5CYII=',
+);
+
+const mediaStore: MockStore = new Map();
+ensureDirectory(mediaStore, '');
+registerFile(mediaStore, 'images/serp_home.png', {
+  mimeType: 'image/png',
+  binaryContent: PLACEHOLDER_PNG,
+  size: PLACEHOLDER_PNG.byteLength,
+});
+registerFile(mediaStore, 'html/rivercityclean-services.html', {
+  mimeType: 'text/html',
+  textContent:
+    '<html><body><h1>River City Cleaning</h1><p>Updated services overview captured from scraper.</p></body></html>',
+});
+registerFile(mediaStore, 'reports/weekly-summary.json', {
+  mimeType: 'application/json',
+  textContent: JSON.stringify({ generatedAt: new Date().toISOString(), totalSnapshots: 18, issuesFound: 3 }, null, 2),
+});
+
+const backupStore: MockStore = new Map();
+ensureDirectory(backupStore, '');
+registerFile(backupStore, 'backup_20240210_0100.tar.gz', {
+  mimeType: 'application/gzip',
+  binaryContent: new TextEncoder().encode('mock backup archive contents'),
+});
+registerFile(backupStore, 'backup_20240209_0100.tar.gz', {
+  mimeType: 'application/gzip',
+  binaryContent: new TextEncoder().encode('older backup archive contents'),
+});
+
 const handlers = [
   http.get(`${API_BASE}/dashboard`, async () => {
     await delay(NETWORK_DELAY);
@@ -379,6 +526,55 @@ const handlers = [
     config = { ...config, userAgents: userAgents.map((ua) => ua.value) };
     await delay(NETWORK_DELAY);
     return HttpResponse.json(userAgents);
+  }),
+  http.get(`${API_BASE}/media/list`, async ({ request }) => {
+    const url = new URL(request.url);
+    const root = (url.searchParams.get('root') === 'backup' ? 'backup' : 'media') as 'media' | 'backup';
+    const relativePath = normalizePath(url.searchParams.get('path') ?? '');
+    const store = root === 'media' ? mediaStore : backupStore;
+    const directory = store.get(relativePath);
+    if (!directory || directory.kind !== 'dir') {
+      await delay(NETWORK_DELAY / 2);
+      return new HttpResponse(null, { status: 404 });
+    }
+    const entries = listDirectoryEntries(store, relativePath).map((node) => ({
+      name: node.path.split('/').pop() ?? '',
+      path: node.path,
+      is_dir: node.kind === 'dir',
+      size: node.kind === 'dir' ? 0 : node.size,
+      modified_at: node.updatedAt,
+      mime_type: node.kind === 'dir' ? null : node.mimeType,
+    }));
+    const payload: MediaListResponse = {
+      root,
+      path: relativePath,
+      breadcrumbs: buildBreadcrumbs(root, relativePath),
+      entries,
+    };
+    await delay(NETWORK_DELAY / 2);
+    return HttpResponse.json(payload);
+  }),
+  http.get(`${API_BASE}/media/file/:filePath*`, async ({ params, request }) => {
+    const url = new URL(request.url);
+    const root = (url.searchParams.get('root') === 'backup' ? 'backup' : 'media') as 'media' | 'backup';
+    const store = root === 'media' ? mediaStore : backupStore;
+    const filePath = normalizePath((params.filePath as string) ?? '');
+    const file = getFileNode(store, filePath);
+    if (!file) {
+      await delay(NETWORK_DELAY / 2);
+      return new HttpResponse(null, { status: 404 });
+    }
+    await delay(NETWORK_DELAY / 2);
+    const headers = {
+      'Content-Type': file.mimeType,
+      'Content-Disposition': `attachment; filename="${encodeURIComponent(file.path.split('/').pop() ?? 'file')}"`,
+    };
+    if (file.textContent !== undefined) {
+      return HttpResponse.text(file.textContent, { status: 200, headers });
+    }
+    const binary = file.binaryContent ?? new Uint8Array();
+    const buffer = binary.buffer.slice(binary.byteOffset, binary.byteOffset + binary.byteLength);
+    return HttpResponse.arrayBuffer(buffer, { status: 200, headers });
   }),
 ];
 
