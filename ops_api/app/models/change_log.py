@@ -19,4 +19,5 @@ class ChangeLogEntry:
     status: str = "pending"
     payload_json: Dict[str, Any] | None = None
     created_at: datetime = field(default_factory=_utcnow)
+    anomaly_id: int | None = None
     id: int | None = None

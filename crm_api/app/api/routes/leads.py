@@ -7,7 +7,13 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, status
 
 from ...core.security import decode_token, role_guard
-from ...db import count_leads, count_won_leads, create_contact_record, list_contact_records
+from ...db import (
+    count_leads,
+    count_won_leads,
+    create_contact_record,
+    delete_contact_record,
+    list_contact_records,
+)
 from ...models import LeadStatus, UserRole
 from ...schemas.contact import ContactCreate, ContactRead, DashboardSummary
 
@@ -52,6 +58,4 @@ def delete_contact(contact_id: UUID, authorization: str) -> None:
     target = next((c for c in contacts if c.id == contact_id), None)
     if target is None:
         raise HTTPException(status_code=404, detail="Contact not found")
-    from ...db import DB
-
-    DB.contacts.pop(contact_id, None)
+    delete_contact_record(contact_id)

@@ -1,9 +1,9 @@
-"""Suggestion persistence model."""
+"""Anomaly persistence model."""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict
+from typing import List
 
 
 def _utcnow() -> datetime:
@@ -11,13 +11,15 @@ def _utcnow() -> datetime:
 
 
 @dataclass
-class Suggestion:
-    """Represents an AI generated suggestion awaiting review."""
+class Anomaly:
+    """Represents a detected SEO anomaly awaiting remediation."""
 
+    page_id: str
     type: str
-    target: str
-    payload_json: Dict[str, Any]
-    status: str = "pending"
+    summary: str
+    proposed_actions: List[str]
     created_at: datetime = field(default_factory=_utcnow)
-    anomaly_id: int | None = None
     id: int | None = None
+
+
+__all__ = ["Anomaly"]

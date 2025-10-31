@@ -27,6 +27,7 @@ class GenerationRequest:
     target: str
     model: Type[BaseModel]
     payload: Dict[str, Any]
+    anomaly_id: int | None = None
 
 
 @dataclass
@@ -100,6 +101,7 @@ class GenerationPipeline:
                 type=request.suggestion_type,
                 target=request.target,
                 payload_json=model_instance.dict(),
+                anomaly_id=request.anomaly_id,
             )
             suggestion = self._session.add(suggestion)  # assigns identifier
             change_log = ChangeLogEntry(
@@ -110,6 +112,7 @@ class GenerationPipeline:
                     "template": request.template_id,
                     "diff": request.payload.get("diff"),
                 },
+                anomaly_id=request.anomaly_id,
             )
             self._session.add(change_log)
             return GenerationResult(suggestion=suggestion, data=model_instance)

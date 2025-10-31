@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from typing import Iterator
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from .models import Contact, DB, Lead
 
@@ -29,9 +29,8 @@ def list_contact_records() -> list[Contact]:
     return list(DB.contacts.values())
 
 
-def delete_contact(contact_id: Contact | None) -> None:
-    if contact_id is not None:
-        DB.contacts.pop(contact_id.id, None)
+def delete_contact_record(contact_id: UUID) -> None:
+    DB.contacts.pop(contact_id, None)
 
 
 def count_leads() -> int:
