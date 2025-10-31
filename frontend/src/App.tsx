@@ -1,36 +1,47 @@
-import { useQuery } from '@tanstack/react-query';
-import { Button } from './components/ui/button';
-import { ThemeToggle } from './components/theme-toggle';
-import { fetchHealth } from './lib/api';
+import { Navigate, Route, Routes } from 'react-router-dom';
+
+import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { DashboardLayout } from '@/layouts/DashboardLayout';
+import { CalendarPage } from '@/pages/CalendarPage';
+import { CampaignsPage } from '@/pages/CampaignsPage';
+import { ContentPage } from '@/pages/ContentPage';
+import { DashboardPage } from '@/pages/DashboardPage';
+import { InboxPage } from '@/pages/InboxPage';
+import { LeadDetailPage } from '@/pages/LeadDetailPage';
+import { LeadsPage } from '@/pages/LeadsPage';
+import { LoginPage } from '@/pages/LoginPage';
+import { QuotesPage } from '@/pages/QuotesPage';
+import { ReviewQueuePage } from '@/pages/ReviewQueuePage';
+import { SettingsPage } from '@/pages/SettingsPage';
 
 function App() {
-  const { data, refetch, isFetching } = useQuery({
-    queryKey: ['health'],
-    queryFn: fetchHealth
-  });
-
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <header className="border-b">
-        <div className="container flex items-center justify-between py-6">
-          <h1 className="text-2xl font-semibold">AI SEO Dashboard</h1>
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-            <Button onClick={() => refetch()} disabled={isFetching}>
-              {isFetching ? 'Checking…' : 'Check API Health'}
-            </Button>
-          </div>
-        </div>
-      </header>
-      <main className="container py-10">
-        <section className="rounded-lg border bg-card p-6 shadow-sm">
-          <h2 className="text-xl font-medium">Backend status</h2>
-          <p className="mt-2 text-muted-foreground">
-            {data?.status ?? 'Loading API status...'}
-          </p>
-        </section>
-      </main>
-    </div>
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route element={<ProtectedRoute />}>
+        <Route element={<DashboardLayout />}>
+          <Route index element={<DashboardPage />} />
+          <Route path="inbox" element={<InboxPage />} />
+          <Route path="leads">
+            <Route index element={<LeadsPage />} />
+            <Route path=":id" element={<LeadDetailPage />} />
+          </Route>
+          <Route path="calendar" element={<CalendarPage />} />
+          <Route path="quotes" element={<QuotesPage />} />
+          <Route path="campaigns" element={<CampaignsPage />} />
+          <Route element={<ProtectedRoute roles={['admin', 'manager', 'tech']} />}>
+            <Route path="review-queue" element={<ReviewQueuePage />} />
+          </Route>
+          <Route element={<ProtectedRoute roles={['admin', 'manager']} />}>
+            <Route path="content" element={<ContentPage />} />
+          </Route>
+          <Route element={<ProtectedRoute roles={['admin']} />}>
+            <Route path="settings" element={<SettingsPage />} />
+          </Route>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Route>
+      </Route>
+    </Routes>
   );
 }
 
