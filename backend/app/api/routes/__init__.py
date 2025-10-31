@@ -1,3 +1,3 @@
-from . import health, media, system
+from . import client, health, media, system
 
-__all__ = ['health', 'media', 'system']
+__all__ = ['client', 'health', 'media', 'system']
