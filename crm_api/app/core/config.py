@@ -17,6 +17,12 @@ class Settings:
     refresh_token_expire_minutes: int = int(os.getenv("CRM_REFRESH_TOKEN_MINUTES", str(60 * 24)))
     database_url: str = os.getenv("CRM_DATABASE_URL", "sqlite:///./crm.db")
     allowed_origins: List[str] | None = None
+    facebook_verify_token: str = os.getenv("CRM_FACEBOOK_VERIFY_TOKEN", "fb-test-token")
+    google_leads_verify_key: str = os.getenv("CRM_GOOGLE_LEADS_KEY", "google-test-key")
+    twilio_auth_token: str = os.getenv("CRM_TWILIO_AUTH_TOKEN", "twilio-test-token")
+    email_poll_enabled: bool = os.getenv("CRM_EMAIL_POLL_ENABLED", "false").lower() == "true"
+    email_poll_interval_seconds: int = int(os.getenv("CRM_EMAIL_POLL_INTERVAL", "300"))
+    email_poll_sample_path: str | None = os.getenv("CRM_EMAIL_POLL_SAMPLE_PATH")
 
     def __post_init__(self) -> None:
         if self.allowed_origins is None:

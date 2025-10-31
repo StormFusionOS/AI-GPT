@@ -10,12 +10,20 @@ from ...core.security import decode_token, role_guard
 from ...db import (
     count_leads,
     count_won_leads,
-    create_contact_record,
     delete_contact_record,
     list_contact_records,
+    list_interactions_for_lead,
+    list_lead_records,
+    upsert_contact_record,
 )
-from ...models import LeadStatus, UserRole
-from ...schemas.contact import ContactCreate, ContactRead, DashboardSummary
+from ...models import UserRole
+from ...schemas.contact import (
+    ContactCreate,
+    ContactRead,
+    DashboardSummary,
+    InteractionRead,
+    LeadBoardItem,
+)
 
 router = APIRouter(prefix="/leads", tags=["leads"])
 
@@ -41,7 +49,7 @@ def dashboard(authorization: str) -> DashboardSummary:
 @router.post("/contacts", response_model=ContactRead)
 def create_contact(payload: ContactCreate, authorization: str) -> ContactRead:
     _assert_role(authorization)
-    contact = create_contact_record(payload.name, payload.email, payload.phone)
+    contact = upsert_contact_record(payload.name, payload.email, payload.phone)
     return ContactRead(id=contact.id, name=contact.name, email=contact.email, phone=contact.phone)
 
 
@@ -49,6 +57,48 @@ def create_contact(payload: ContactCreate, authorization: str) -> ContactRead:
 def list_contacts(authorization: str) -> List[ContactRead]:
     _assert_role(authorization)
     return [ContactRead(id=item.id, name=item.name, email=item.email, phone=item.phone) for item in list_contact_records()]
+
+
+@router.get("", response_model=List[LeadBoardItem])
+def list_leads(authorization: str) -> List[LeadBoardItem]:
+    _assert_role(authorization)
+    board: List[LeadBoardItem] = []
+    contacts = {contact.id: contact for contact in list_contact_records()}
+    for lead in list_lead_records():
+        contact = contacts.get(lead.contact_id)
+        last_message = None
+        interactions = list_interactions_for_lead(lead.id)
+        if interactions:
+            last_message = interactions[-1].content
+        board.append(
+            LeadBoardItem(
+                id=lead.id,
+                contact_id=lead.contact_id,
+                contact_name=contact.name if contact else "Unknown",
+                status=lead.status,
+                source=lead.source,
+                created_at=lead.created_at,
+                last_message_preview=last_message,
+            )
+        )
+    return board
+
+
+@router.get("/{lead_id}/interactions", response_model=List[InteractionRead])
+def lead_interactions(lead_id: UUID, authorization: str) -> List[InteractionRead]:
+    _assert_role(authorization)
+    items = list_interactions_for_lead(lead_id)
+    return [
+        InteractionRead(
+            id=interaction.id,
+            lead_id=interaction.lead_id,
+            contact_id=interaction.contact_id,
+            interaction_type=interaction.interaction_type,
+            content=interaction.content,
+            occurred_at=interaction.occurred_at,
+        )
+        for interaction in items
+    ]
 
 
 @router.delete("/contacts/{contact_id}", status_code=204)

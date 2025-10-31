@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, Enum, ForeignKey, MetaData, Numeric, String, func
+from sqlalchemy import DateTime, Enum, ForeignKey, MetaData, Numeric, String, Text, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -35,6 +35,20 @@ LEAD_STATUS = Enum(
     "LOST",
     name="lead_status",
 )
+
+INTERACTION_TYPE = Enum(
+    "SMS_IN",
+    "SMS_OUT",
+    "EMAIL_IN",
+    "EMAIL_OUT",
+    "CALL_IN",
+    "CALL_OUT",
+    "FB_MSG",
+    "IG_DM",
+    name="interaction_type",
+)
+
+AUTO_REPLY_CHANNEL = Enum("SMS", "EMAIL", name="auto_reply_channel")
 
 
 class User(CRMBase):
@@ -86,4 +100,48 @@ class Lead(CRMBase):
     owner: Mapped[Optional[User]] = relationship(back_populates="leads")
 
 
-__all__ = ["CRMBase", "User", "Contact", "Lead"]
+class Interaction(CRMBase):
+    """Recorded inbound/outbound communications."""
+
+    __tablename__ = "interactions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    lead_id: Mapped[Optional[str]] = mapped_column(
+        String(36), ForeignKey("crm.leads.id", ondelete="SET NULL"), nullable=True
+    )
+    contact_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("crm.contacts.id", ondelete="CASCADE"), nullable=False
+    )
+    interaction_type: Mapped[str] = mapped_column(INTERACTION_TYPE, nullable=False)
+    channel_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    occurred_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    contact: Mapped[Contact] = relationship()
+    lead: Mapped[Optional[Lead]] = relationship()
+
+
+class AutoReplyRule(CRMBase):
+    """Configurable auto-reply template per channel."""
+
+    __tablename__ = "auto_reply_rules"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    channel: Mapped[str] = mapped_column(AUTO_REPLY_CHANNEL, nullable=False)
+    template: Mapped[str] = mapped_column(Text, nullable=False)
+    after_hours_template: Mapped[str] = mapped_column(Text, nullable=False)
+    business_hours_start: Mapped[int] = mapped_column(nullable=False, default=8)
+    business_hours_end: Mapped[int] = mapped_column(nullable=False, default=18)
+    enabled: Mapped[bool] = mapped_column(nullable=False, default=True)
+
+
+__all__ = [
+    "CRMBase",
+    "User",
+    "Contact",
+    "Lead",
+    "Interaction",
+    "AutoReplyRule",
+]
