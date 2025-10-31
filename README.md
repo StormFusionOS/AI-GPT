@@ -41,3 +41,12 @@ Run the orchestrator worker locally once Redis or RabbitMQ is available:
 ```bash
 poetry run --directory ops_api celery -A ops_api.celery_app worker -l info
 ```
+
+### Adding a new orchestrator task
+
+1. Define a payload schema in `ops_api/app/schemas/orchestrator.py` so FastAPI can validate incoming requests.
+2. Map the task name to a queue in `ops_api/orchestrator/celery_app.py` if it should run outside the default queue.
+3. Implement the Celery function inside `ops_api/orchestrator/tasks/` using the `OrchestratorTask` base. The base automatically handles idempotency keys, retries, and status recording.
+4. Expose the task through `ops_api/app/api/routes/orchestrator.py` by adding the schema to `PAYLOAD_SCHEMAS`.
+5. Update the ops console (e.g. `ops-console/src/lib/api.ts`) if the UI needs to dispatch the new task.
+6. Add or adjust pytest coverage under `ops_api/tests/` to assert queueing behavior.

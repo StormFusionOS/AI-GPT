@@ -5,9 +5,7 @@ from typing import Dict, Generator
 
 from fastapi import Header, HTTPException
 
-from sqlalchemy.orm import Session
-
-from ..db import get_session
+from ..db import DatabaseSession, get_session
 from ..security import decode_token
 
 
@@ -18,5 +16,5 @@ async def get_claims(authorization: str = Header(..., alias="Authorization")) ->
     return decode_token(token)
 
 
-def get_db() -> Generator[Session, None, None]:
+def get_db() -> Generator[DatabaseSession, None, None]:
     yield from get_session()

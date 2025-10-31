@@ -7,8 +7,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Iterable
 
-from sqlalchemy import select
-
 from app.core.config import get_settings
 from app.db import session_scope
 from app.models.service_health import ServiceHealth
@@ -23,10 +21,9 @@ ServiceProbe = Callable[[], tuple[str, str, int | None, dict]]
 
 def _record(service: str, status: str, latency: int | None, details: dict) -> None:
     with session_scope() as session:
-        stmt = select(ServiceHealth).where(ServiceHealth.service == service)
-        record = session.execute(stmt).scalar_one_or_none()
+        record = session.get_service_health_by_name(service)
         if record is None:
-            record = ServiceHealth(service=service, status=status, latency_ms=latency, details=details, checked_at=datetime.now(timezone.utc))
+            record = ServiceHealth(service=service, status=status, latency_ms=latency, details=details)
             session.add(record)
         else:
             record.update(status=status, latency_ms=latency, details=details)

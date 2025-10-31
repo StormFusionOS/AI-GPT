@@ -20,8 +20,27 @@ class HTTPException(Exception):
         self.detail = detail
 
 
+class Depends:
+    """Placeholder dependency wrapper."""
+
+    def __init__(self, dependency: Callable[..., Any]):
+        self.dependency = dependency
+
+
+class Query:
+    """Placeholder for query parameter metadata."""
+
+    def __init__(self, default: Any = None, **_: Any):
+        self.default = default
+
+
+class Header(Query):
+    """Header metadata wrapper (shares Query behavior)."""
+
+
 class _Status:
     HTTP_200_OK = 200
+    HTTP_202_ACCEPTED = 202
     HTTP_204_NO_CONTENT = 204
     HTTP_400_BAD_REQUEST = 400
     HTTP_401_UNAUTHORIZED = 401

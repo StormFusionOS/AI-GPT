@@ -1,8 +1,6 @@
 """Tests for orchestrator endpoints and Celery integration."""
 from __future__ import annotations
 
-from sqlalchemy import select
-
 from app.api.routes.orchestrator import dispatch_task, get_health, list_tasks
 from app.models.task_runs import TaskRun
 from app.schemas.orchestrator import DispatchRequest
@@ -29,7 +27,7 @@ def test_dispatch_idempotency(db_session) -> None:
     second = dispatch_task(request=request, claims=_auth_dict(), session=db_session)
     assert first.status == "queued"
     assert second.status == "duplicate"
-    runs = db_session.execute(select(TaskRun)).scalars().all()
+    runs = db_session.list_task_runs()
     statuses = {run.status for run in runs}
     assert "skipped" in statuses
 
@@ -43,6 +41,7 @@ def test_transient_failure_retries_and_succeeds(db_session) -> None:
     run = db_session.get(TaskRun, response.task_run_id)
     assert run is not None
     assert run.retries >= 1
+    assert run.status == "succeeded"
 
 
 def test_terminal_failure_marked_failed(db_session) -> None:

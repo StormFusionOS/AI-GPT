@@ -22,6 +22,7 @@ class HTTPException(Exception):
 
 class _Status:
     HTTP_200_OK = 200
+    HTTP_202_ACCEPTED = 202
     HTTP_204_NO_CONTENT = 204
     HTTP_400_BAD_REQUEST = 400
     HTTP_401_UNAUTHORIZED = 401
@@ -84,3 +85,20 @@ class FastAPI:
         decorator = router.get(path)
         self.include_router(router)
         return decorator
+class Depends:
+    """Placeholder dependency wrapper."""
+
+    def __init__(self, dependency: Callable[..., Any]):
+        self.dependency = dependency
+
+
+class Query:
+    """Placeholder for query parameter metadata."""
+
+    def __init__(self, default: Any = None, **_: Any):
+        self.default = default
+
+
+class Header(Query):
+    """Header metadata wrapper (shares Query behavior)."""
+

@@ -1,28 +1,38 @@
-"""Service health snapshot model."""
+"""Service health snapshot model for the in-memory store."""
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
-
-from sqlalchemy import JSON, Column, DateTime, Integer, String
-
-from ..db import Base, OPS_SCHEMA
+from typing import Any, Dict
 
 
-class ServiceHealth(Base):
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+@dataclass
+class ServiceHealth:
     """Captures the latest health probe for an infrastructure component."""
 
-    __tablename__ = "service_health"
-    __table_args__ = ({"schema": OPS_SCHEMA},)
+    service: str
+    status: str
+    latency_ms: int | None = None
+    details: Dict[str, Any] | None = None
+    checked_at: datetime = field(default_factory=_utcnow)
+    id: int | None = None
 
-    id = Column(Integer, primary_key=True, index=True)
-    service = Column(String(100), nullable=False, unique=True)
-    status = Column(String(10), nullable=False, default="ok")
-    latency_ms = Column(Integer, nullable=True)
-    details = Column(JSON, nullable=True)
-    checked_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
-
-    def update(self, *, status: str, latency_ms: int | None = None, details: dict | None = None) -> None:
+    def update(self, *, status: str, latency_ms: int | None = None, details: Dict[str, Any] | None = None) -> None:
         self.status = status
         self.latency_ms = latency_ms
         self.details = details or {}
-        self.checked_at = datetime.now(timezone.utc)
+        self.checked_at = _utcnow()
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "service": self.service,
+            "status": self.status,
+            "latency_ms": self.latency_ms,
+            "checked_at": self.checked_at,
+            "details": self.details or {},
+        }

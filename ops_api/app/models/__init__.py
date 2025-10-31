@@ -1,4 +1,4 @@
-"""SQLAlchemy models for the ops service."""
+"""Simple data models for the ops service."""
 from __future__ import annotations
 
 from .service_health import ServiceHealth

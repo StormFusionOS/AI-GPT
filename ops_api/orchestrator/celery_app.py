@@ -1,16 +1,19 @@
 """Celery application for orchestrated ops tasks."""
 from __future__ import annotations
 
-import random
 import json
+import random
+from datetime import datetime, timezone
 from typing import Any, Dict
 
 from celery import Celery, Task
+from celery.exceptions import Ignore
 from celery.utils.log import get_task_logger
 
 from app.core.config import get_settings
 from app.db import session_scope
 from app.models.task_runs import TaskRun
+from ops_api.orchestrator.idempotency import get_idempotency_store
 
 settings = get_settings()
 
@@ -55,16 +58,32 @@ class OrchestratorTask(Task):
     abstract = True
     max_retries = 5
 
-    def before_start(self, task_id: str, args: tuple[Any, ...], kwargs: Dict[str, Any]) -> None:
+    def before_start(self, task_id: str, args: tuple[Any, ...], kwargs: Dict[str, Any]) -> None:  # type: ignore[override]
         task_run_id = kwargs.get("task_run_id")
+        payload = kwargs.get("payload", {})
+        idempotency_key = kwargs.get("idempotency_key")
+        store = get_idempotency_store()
+        allowed, key = store.try_start(self.name, payload, override_key=idempotency_key)
+        if not allowed:
+            logger.info("Duplicate task suppressed", extra={"task": self.name, "key": key})
+            if task_run_id is not None:
+                with session_scope() as session:
+                    run = session.get(TaskRun, task_run_id)
+                    if run:
+                        run.status = "skipped"
+                        run.message = f"Duplicate suppressed ({key})"
+                        run.finished_at = datetime.now(timezone.utc)
+            raise Ignore()
+        setattr(self.request, "idempotency_key", key)
         if task_run_id is None:
             return
         with session_scope() as session:
             run = session.get(TaskRun, task_run_id)
             if run:
+                run.idempotency_key = key
                 run.mark_running()
 
-    def after_return(
+    def after_return(  # type: ignore[override]
         self,
         status: str,
         retval: Any,
@@ -74,15 +93,17 @@ class OrchestratorTask(Task):
         exc: BaseException | None,
     ) -> None:
         task_run_id = kwargs.get("task_run_id")
+        key = getattr(self.request, "idempotency_key", kwargs.get("idempotency_key"))
+        if key:
+            get_idempotency_store().finish(key, outcome=status)
         if task_run_id is None:
             return
         with session_scope() as session:
             run = session.get(TaskRun, task_run_id)
             if not run:
                 return
-            run.retries = self.request.retries  # type: ignore[attr-defined]
+            run.retries = getattr(self.request, "retries", run.retries)
             if status == "SUCCESS":
-                message: str | None
                 if retval is None:
                     message = None
                 elif isinstance(retval, (str, int, float)):
@@ -93,13 +114,19 @@ class OrchestratorTask(Task):
             elif status == "RETRY":
                 run.mark_finished("retrying", message=str(exc) if exc else None)
                 run.finished_at = None
+            elif status == "IGNORED":
+                # already marked skipped in before_start; no further action
+                return
             else:
                 run.mark_finished("failed", message=str(exc) if exc else None)
 
     def exponential_retry(self, exc: Exception, **kwargs: Any) -> None:
-        retries = self.request.retries + 1  # type: ignore[attr-defined]
+        retries = getattr(self.request, "retries", 0) + 1
         delay = _backoff(1, retries)
         raise self.retry(exc=exc, countdown=delay, **kwargs)
 
 
 __all__ = ["celery_app", "OrchestratorTask"]
+
+# Ensure tasks are registered when the module is imported.
+from ops_api.orchestrator.tasks import seo as _seo_tasks  # noqa: F401

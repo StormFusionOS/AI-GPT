@@ -30,87 +30,106 @@ def _simulate(payload: Dict[str, Any]) -> None:
         raise TransientTaskError("Transient failure requested")
 
 
-@celery_app.task(name="ops.serp_sample", bind=True, base=OrchestratorTask, max_retries=5)
-def serp_sample(self: OrchestratorTask, *, task_run_id: int, payload: Dict[str, Any]) -> Dict[str, Any]:
+def _handle_simulation(task: OrchestratorTask, payload: Dict[str, Any], task_run_id: int, idempotency_key: str | None) -> None:
     try:
         _simulate(payload)
     except TransientTaskError as exc:
-        self.exponential_retry(exc, kwargs={"task_run_id": task_run_id, "payload": payload})
+        task.exponential_retry(
+            exc,
+            kwargs={"task_run_id": task_run_id, "payload": payload, "idempotency_key": idempotency_key},
+        )
     except FatalTaskError as exc:
         raise exc
+
+
+@celery_app.task(name="ops.serp_sample", bind=True, base=OrchestratorTask, max_retries=5)
+def serp_sample(
+    self: OrchestratorTask,
+    *,
+    task_run_id: int,
+    payload: Dict[str, Any],
+    idempotency_key: str | None = None,
+) -> Dict[str, Any]:
+    _handle_simulation(self, payload, task_run_id, idempotency_key)
     result = {"status": "ok", "keywords_processed": [payload.get("keyword", "")]}
     logger.info("SERP sample complete", extra=result)
     return result
 
 
 @celery_app.task(name="ops.competitor_crawl", bind=True, base=OrchestratorTask, max_retries=5)
-def competitor_crawl(self: OrchestratorTask, *, task_run_id: int, payload: Dict[str, Any]) -> Dict[str, Any]:
-    try:
-        _simulate(payload)
-    except TransientTaskError as exc:
-        self.exponential_retry(exc, kwargs={"task_run_id": task_run_id, "payload": payload})
-    except FatalTaskError as exc:
-        raise exc
+def competitor_crawl(
+    self: OrchestratorTask,
+    *,
+    task_run_id: int,
+    payload: Dict[str, Any],
+    idempotency_key: str | None = None,
+) -> Dict[str, Any]:
+    _handle_simulation(self, payload, task_run_id, idempotency_key)
     logger.info("Competitor crawl complete", extra={"domain": payload.get("domain")})
     return {"status": "ok"}
 
 
 @celery_app.task(name="ops.backlink_refresh", bind=True, base=OrchestratorTask, max_retries=5)
-def backlink_refresh(self: OrchestratorTask, *, task_run_id: int, payload: Dict[str, Any]) -> Dict[str, Any]:
-    try:
-        _simulate(payload)
-    except TransientTaskError as exc:
-        self.exponential_retry(exc, kwargs={"task_run_id": task_run_id, "payload": payload})
-    except FatalTaskError as exc:
-        raise exc
+def backlink_refresh(
+    self: OrchestratorTask,
+    *,
+    task_run_id: int,
+    payload: Dict[str, Any],
+    idempotency_key: str | None = None,
+) -> Dict[str, Any]:
+    _handle_simulation(self, payload, task_run_id, idempotency_key)
     logger.info("Backlink refresh finished", extra={"domain": payload.get("domain")})
     return {"status": "ok"}
 
 
 @celery_app.task(name="ops.citation_audit", bind=True, base=OrchestratorTask, max_retries=5)
-def citation_audit(self: OrchestratorTask, *, task_run_id: int, payload: Dict[str, Any]) -> Dict[str, Any]:
-    try:
-        _simulate(payload)
-    except TransientTaskError as exc:
-        self.exponential_retry(exc, kwargs={"task_run_id": task_run_id, "payload": payload})
-    except FatalTaskError as exc:
-        raise exc
+def citation_audit(
+    self: OrchestratorTask,
+    *,
+    task_run_id: int,
+    payload: Dict[str, Any],
+    idempotency_key: str | None = None,
+) -> Dict[str, Any]:
+    _handle_simulation(self, payload, task_run_id, idempotency_key)
     logger.info("Citation audit complete", extra={"business": payload.get("business_name")})
     return {"status": "ok"}
 
 
 @celery_app.task(name="ops.indexnow_ping", bind=True, base=OrchestratorTask, max_retries=5)
-def indexnow_ping(self: OrchestratorTask, *, task_run_id: int, payload: Dict[str, Any]) -> Dict[str, Any]:
-    try:
-        _simulate(payload)
-    except TransientTaskError as exc:
-        self.exponential_retry(exc, kwargs={"task_run_id": task_run_id, "payload": payload})
-    except FatalTaskError as exc:
-        raise exc
+def indexnow_ping(
+    self: OrchestratorTask,
+    *,
+    task_run_id: int,
+    payload: Dict[str, Any],
+    idempotency_key: str | None = None,
+) -> Dict[str, Any]:
+    _handle_simulation(self, payload, task_run_id, idempotency_key)
     logger.info("IndexNow ping complete", extra={"urls": payload.get("urls")})
     return {"status": "ok"}
 
 
 @celery_app.task(name="ops.content_generate", bind=True, base=OrchestratorTask, max_retries=5)
-def content_generate(self: OrchestratorTask, *, task_run_id: int, payload: Dict[str, Any]) -> Dict[str, Any]:
-    try:
-        _simulate(payload)
-    except TransientTaskError as exc:
-        self.exponential_retry(exc, kwargs={"task_run_id": task_run_id, "payload": payload})
-    except FatalTaskError as exc:
-        raise exc
+def content_generate(
+    self: OrchestratorTask,
+    *,
+    task_run_id: int,
+    payload: Dict[str, Any],
+    idempotency_key: str | None = None,
+) -> Dict[str, Any]:
+    _handle_simulation(self, payload, task_run_id, idempotency_key)
     logger.info("Content generated", extra={"topic": payload.get("topic")})
     return {"status": "ok"}
 
 
 @celery_app.task(name="ops.schema_inject", bind=True, base=OrchestratorTask, max_retries=5)
-def schema_inject(self: OrchestratorTask, *, task_run_id: int, payload: Dict[str, Any]) -> Dict[str, Any]:
-    try:
-        _simulate(payload)
-    except TransientTaskError as exc:
-        self.exponential_retry(exc, kwargs={"task_run_id": task_run_id, "payload": payload})
-    except FatalTaskError as exc:
-        raise exc
+def schema_inject(
+    self: OrchestratorTask,
+    *,
+    task_run_id: int,
+    payload: Dict[str, Any],
+    idempotency_key: str | None = None,
+) -> Dict[str, Any]:
+    _handle_simulation(self, payload, task_run_id, idempotency_key)
     logger.info("Schema injected", extra={"page": payload.get("page_url")})
     return {"status": "ok"}
 

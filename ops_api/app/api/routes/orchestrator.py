@@ -5,28 +5,25 @@ from datetime import datetime, timezone
 from typing import Any, Dict, Mapping
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
-from sqlalchemy.orm import Session
 
-from ...models import ServiceHealth, TaskRun
+from ...db import DatabaseSession
+from ...models import TaskRun
 from ...security import RoleGuard
 from ..deps import get_claims, get_db
-from ...schemas.orchestrator import (
-    ContentGeneratePayload,
-    DispatchRequest,
-    DispatchResponse,
-    OrchestratorHealthResponse,
-    SchemaInjectPayload,
-    ServiceHealthView,
-    TaskRunListResponse,
-    TaskRunView,
-)
 from ...schemas.orchestrator import (
     BacklinkRefreshPayload,
     CitationAuditPayload,
     CompetitorCrawlPayload,
+    ContentGeneratePayload,
+    DispatchRequest,
+    DispatchResponse,
     IndexNowPingPayload,
+    OrchestratorHealthResponse,
+    SchemaInjectPayload,
     SerpSamplePayload,
+    ServiceHealthView,
+    TaskRunListResponse,
+    TaskRunView,
 )
 from ops_api.orchestrator.celery_app import celery_app
 from ops_api.orchestrator.idempotency import get_idempotency_store
@@ -64,12 +61,20 @@ def _authorise(claims: Dict[str, Any]) -> None:
 @router.get("/health", response_model=OrchestratorHealthResponse)
 def get_health(
     claims: Dict[str, Any] = Depends(get_claims),
-    session: Session = Depends(get_db),
+    session: DatabaseSession = Depends(get_db),
 ) -> OrchestratorHealthResponse:
     _authorise(claims)
-    stmt = select(ServiceHealth).order_by(ServiceHealth.service.asc())
-    results = session.execute(stmt).scalars().all()
-    services = [ServiceHealthView.from_orm(row) for row in results]
+    results = session.list_service_health()
+    services = [
+        ServiceHealthView(
+            service=record.service,
+            status=record.status,  # type: ignore[arg-type]
+            latency_ms=record.latency_ms,
+            checked_at=record.checked_at,
+            details=record.details or {},
+        )
+        for record in results
+    ]
     return OrchestratorHealthResponse(services=services, generated_at=datetime.now(timezone.utc))
 
 
@@ -78,23 +83,33 @@ def list_tasks(
     module: str | None = Query(default=None),
     status_filter: str | None = Query(alias="status", default=None),
     claims: Dict[str, Any] = Depends(get_claims),
-    session: Session = Depends(get_db),
+    session: DatabaseSession = Depends(get_db),
 ) -> TaskRunListResponse:
     _authorise(claims)
-    stmt = select(TaskRun).order_by(TaskRun.queued_at.desc()).limit(200)
-    if module:
-        stmt = stmt.where(TaskRun.module == module)
-    if status_filter:
-        stmt = stmt.where(TaskRun.status == status_filter)
-    runs = session.execute(stmt).scalars().all()
-    return TaskRunListResponse(items=[TaskRunView.from_orm(run) for run in runs])
+    runs = session.list_task_runs(module=module, status=status_filter, limit=200)
+    return TaskRunListResponse(
+        items=[
+            TaskRunView(
+                id=run.id or 0,
+                module=run.module,
+                task=run.task,
+                status=run.status,
+                queued_at=run.queued_at,
+                started_at=run.started_at,
+                finished_at=run.finished_at,
+                retries=run.retries,
+                message=run.message,
+            )
+            for run in runs
+        ]
+    )
 
 
 @router.post("/dispatch", response_model=DispatchResponse, status_code=status.HTTP_202_ACCEPTED)
 def dispatch_task(
     request: DispatchRequest,
     claims: Dict[str, Any] = Depends(get_claims),
-    session: Session = Depends(get_db),
+    session: DatabaseSession = Depends(get_db),
 ) -> DispatchResponse:
     _authorise(claims)
     schema_cls = PAYLOAD_SCHEMAS.get(request.name)
@@ -102,18 +117,25 @@ def dispatch_task(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unknown task")
     payload_model = schema_cls(**request.payload)
     payload = payload_model.dict(exclude_none=True)
-    store = get_idempotency_store()
     override_key = payload.pop("idempotency_key", None) if "idempotency_key" in payload else None
-    accepted, idem_key = store.register(request.name, payload, override_key=override_key)
+    store = get_idempotency_store()
+    accepted, idem_key = store.reserve(request.name, payload, override_key=override_key)
     module = MODULE_MAP[request.name]
     status_value = "queued" if accepted else "skipped"
     message = None if accepted else f"Duplicate request ignored ({idem_key})"
-    task_run = TaskRun(module=module, task=request.name, status=status_value, payload_json=payload, message=message)
+    task_run = TaskRun(
+        module=module,
+        task=request.name,
+        status=status_value,
+        payload_json=payload,
+        message=message,
+        idempotency_key=idem_key,
+    )
     session.add(task_run)
-    session.flush()
     if not accepted:
-        session.commit()
-        return DispatchResponse(task_run_id=task_run.id, status="duplicate")
-    celery_app.send_task(f"ops.{request.name}", kwargs={"task_run_id": task_run.id, "payload": payload})
-    session.commit()
-    return DispatchResponse(task_run_id=task_run.id, status="queued")
+        return DispatchResponse(task_run_id=task_run.id or 0, status="duplicate")
+    celery_app.send_task(
+        f"ops.{request.name}",
+        kwargs={"task_run_id": task_run.id, "payload": payload, "idempotency_key": idem_key},
+    )
+    return DispatchResponse(task_run_id=task_run.id or 0, status="queued")

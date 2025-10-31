@@ -1,36 +1,54 @@
-"""Task run persistence model."""
+"""Task run persistence model backed by an in-memory store."""
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
-
-from sqlalchemy import JSON, Column, DateTime, Integer, String, Text
-
-from ..db import Base, OPS_SCHEMA
+from typing import Any, Dict
 
 
-class TaskRun(Base):
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+@dataclass
+class TaskRun:
     """Represents a single orchestrated task execution."""
 
-    __tablename__ = "task_runs"
-    __table_args__ = ({"schema": OPS_SCHEMA},)
-
-    id = Column(Integer, primary_key=True, index=True)
-    module = Column(String(50), nullable=False)
-    task = Column(String(100), nullable=False)
-    status = Column(String(20), nullable=False, default="queued")
-    queued_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
-    started_at = Column(DateTime(timezone=True), nullable=True)
-    finished_at = Column(DateTime(timezone=True), nullable=True)
-    retries = Column(Integer, nullable=False, default=0)
-    message = Column(Text, nullable=True)
-    payload_json = Column(JSON, nullable=True)
+    module: str
+    task: str
+    status: str = "queued"
+    queued_at: datetime = field(default_factory=_utcnow)
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+    retries: int = 0
+    message: str | None = None
+    payload_json: Dict[str, Any] | None = None
+    idempotency_key: str | None = None
+    id: int | None = None
 
     def mark_running(self) -> None:
         self.status = "running"
-        self.started_at = datetime.now(timezone.utc)
+        self.started_at = _utcnow()
 
     def mark_finished(self, status: str, message: str | None = None) -> None:
         self.status = status
-        self.finished_at = datetime.now(timezone.utc)
+        self.finished_at = _utcnow()
         if message is not None:
             self.message = message
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "module": self.module,
+            "task": self.task,
+            "status": self.status,
+            "queued_at": self.queued_at,
+            "started_at": self.started_at,
+            "finished_at": self.finished_at,
+            "retries": self.retries,
+            "message": self.message,
+        }
+
+    def to_payload(self) -> Dict[str, Any]:
+        data = dict(self.payload_json or {})
+        return data

@@ -3,23 +3,29 @@ from __future__ import annotations
 
 from collections.abc import Generator
 from pathlib import Path
+import sys
 
 import pytest
 
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+OPS_ROOT = Path(__file__).resolve().parents[1]
+if str(OPS_ROOT) not in sys.path:
+    sys.path.insert(0, str(OPS_ROOT))
+
 from app.core import config as config_module
 from app.core.config import Settings, get_settings
-from app.db import Base, SessionLocal, engine, init_db, reset_engine
+from app.db import DatabaseSession, get_database, reset_database
 from ops_api.orchestrator import celery_app as orchestrator_app
-
-
-TEST_DB = Path("ops-test.db")
+from ops_api.orchestrator.idempotency import get_idempotency_store
 
 
 @pytest.fixture(scope="session", autouse=True)
 def override_settings() -> Generator[None, None, None]:
     def _settings() -> Settings:
         return Settings(
-            database_url="sqlite:///./ops-test.db",
+            database_url="sqlite:///unused",
             allowed_origins=["http://testserver"],
             secret_key="ops-secret",
             celery_broker_url="memory://",
@@ -30,8 +36,6 @@ def override_settings() -> Generator[None, None, None]:
 
     config_module.get_settings.cache_clear()  # type: ignore[attr-defined]
     config_module.get_settings = _settings  # type: ignore[assignment]
-    reset_engine()
-    init_db()
     previous_eager = orchestrator_app.conf.task_always_eager
     previous_propagate = orchestrator_app.conf.task_eager_propagates
     orchestrator_app.conf.task_always_eager = True
@@ -40,21 +44,18 @@ def override_settings() -> Generator[None, None, None]:
     orchestrator_app.conf.task_always_eager = previous_eager
     orchestrator_app.conf.task_eager_propagates = previous_propagate
     config_module.get_settings = get_settings  # type: ignore[assignment]
-    if TEST_DB.exists():
-        TEST_DB.unlink()
 
 
 @pytest.fixture(autouse=True)
-def clean_db() -> Generator[None, None, None]:
-    Base.metadata.drop_all(bind=engine)
-    Base.metadata.create_all(bind=engine)
+def clean_state() -> Generator[None, None, None]:
+    reset_database()
+    get_idempotency_store().reset()
     yield
-    SessionLocal.close_all()
 
 
 @pytest.fixture()
-def db_session(override_settings: None) -> Generator:
-    session = SessionLocal()
+def db_session() -> Generator[DatabaseSession, None, None]:
+    session = DatabaseSession(get_database())
     try:
         yield session
     finally:
