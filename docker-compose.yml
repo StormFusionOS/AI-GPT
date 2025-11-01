@@ -1,22 +1,144 @@
 version: '3.9'
+
 services:
+  # Infrastructure
   crm-db:
     image: postgres:15-alpine
     environment:
       POSTGRES_USER: crm
       POSTGRES_PASSWORD: crm
       POSTGRES_DB: crm
-    ports:
-      - '5433:5432'
+    volumes:
+      - crm_db_data:/var/lib/postgresql/data
+    networks:
+      - crm_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U crm"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   ops-db:
     image: postgres:15-alpine
     environment:
       POSTGRES_USER: ops
       POSTGRES_PASSWORD: ops
       POSTGRES_DB: ops
-    ports:
-      - '5434:5432'
+    volumes:
+      - ops_db_data:/var/lib/postgresql/data
+    networks:
+      - ops_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ops"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   redis:
     image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    networks:
+      - crm_network
+      - ops_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # CRM Backend
+  crm-api:
+    build:
+      context: ./crm_api
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql+psycopg://crm:crm@crm-db:5432/crm
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+    depends_on:
+      crm-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - crm_network
+    restart: unless-stopped
+
+  # OPS Backend
+  ops-api:
+    build:
+      context: ./ops_api
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql+psycopg://ops:ops@ops-db:5432/ops
+      - REDIS_URL=redis://redis:6379/1
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - OPS_PG_DSN=postgresql://ops:ops@ops-db:5432/ops
+      - CRM_PG_DSN=postgresql://crm:crm@crm-db:5432/crm
+    depends_on:
+      ops-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ops_network
+      - crm_network  # Allow ops-api to access crm-db for backup
+    restart: unless-stopped
+
+  # CRM Frontend
+  crm-frontend:
+    build:
+      context: ./crm
+      dockerfile: Dockerfile
+    environment:
+      - VITE_API_BASE_URL=/api
+    depends_on:
+      - crm-api
+    networks:
+      - crm_network
+    restart: unless-stopped
+
+  # OPS Frontend
+  ops-frontend:
+    build:
+      context: ./ops-console
+      dockerfile: Dockerfile
+    environment:
+      - VITE_API_BASE_URL=/api
+    depends_on:
+      - ops-api
+    networks:
+      - ops_network
+    restart: unless-stopped
+
+  # Nginx Reverse Proxy
+  nginx:
+    build:
+      context: ./deploy/nginx
+      dockerfile: Dockerfile
     ports:
-      - '6379:6379'
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - crm-frontend
+      - crm-api
+      - ops-frontend
+      - ops-api
+    networks:
+      - crm_network
+      - ops_network
+    restart: unless-stopped
+
+volumes:
+  crm_db_data:
+  ops_db_data:
+  redis_data:
+
+networks:
+  crm_network:
+    driver: bridge
+  ops_network:
+    driver: bridge
