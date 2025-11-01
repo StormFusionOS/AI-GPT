@@ -1,10 +1,4 @@
-"""Lightweight FastAPI stub for offline testing.
-
-This module provides a tiny subset of FastAPI's interface sufficient for unit
-tests that call endpoint handlers directly. It is **not** a drop-in
-replacement for the real framework but enables static imports without pulling
-network dependencies in the execution environment.
-"""
+"""Minimal FastAPI shim used exclusively in test environments."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -12,7 +6,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 
 class HTTPException(Exception):
-    """Exception carrying HTTP-style metadata."""
+    """Exception carrying HTTP-like metadata."""
 
     def __init__(self, status_code: int, detail: str | Dict[str, Any] | None = None):
         super().__init__(detail)
@@ -22,12 +16,14 @@ class HTTPException(Exception):
 
 class _Status:
     HTTP_200_OK = 200
+    HTTP_201_CREATED = 201
     HTTP_202_ACCEPTED = 202
     HTTP_204_NO_CONTENT = 204
     HTTP_400_BAD_REQUEST = 400
     HTTP_401_UNAUTHORIZED = 401
     HTTP_403_FORBIDDEN = 403
     HTTP_404_NOT_FOUND = 404
+    HTTP_409_CONFLICT = 409
     HTTP_500_INTERNAL_SERVER_ERROR = 500
 
 
@@ -42,12 +38,19 @@ class _Route:
 
 
 class APIRouter:
-    """Minimal router storing handlers for inclusion on the app."""
+    """Minimal router collecting registered routes."""
 
     def __init__(self, prefix: str = "", tags: Optional[List[str]] = None):
         self.prefix = prefix
         self.tags = tags or []
         self.routes: List[_Route] = []
+
+    def _add_route(self, method: str, path: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+        def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+            self.routes.append(_Route(method=method, path=f"{self.prefix}{path}", handler=func))
+            return func
+
+        return decorator
 
     def get(self, path: str, **_: Any) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
         return self._add_route("GET", path)
@@ -57,13 +60,6 @@ class APIRouter:
 
     def delete(self, path: str, **_: Any) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
         return self._add_route("DELETE", path)
-
-    def _add_route(self, method: str, path: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
-        def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
-            self.routes.append(_Route(method=method, path=f"{self.prefix}{path}", handler=func))
-            return func
-
-        return decorator
 
 
 class FastAPI:
@@ -85,8 +81,10 @@ class FastAPI:
         decorator = router.get(path)
         self.include_router(router)
         return decorator
-def Depends(dependency: Callable[..., Any]):  # type: ignore[override]
-    """Return the dependency callable for manual invocation in tests."""
+
+
+def Depends(dependency: Callable[..., Any]) -> Callable[..., Any]:  # type: ignore[override]
+    """Return the dependency callable for direct invocation in tests."""
 
     return dependency
 
@@ -99,16 +97,23 @@ class Query:
 
 
 class Header(Query):
-    """Header metadata wrapper (shares Query behavior)."""
+    """Header metadata wrapper (shares Query behaviour)."""
+
+
+class CORSMiddleware:  # pragma: no cover - placeholder
+    """No-op middleware placeholder for tests."""
+
+    def __init__(self, app: Any, **_: Any) -> None:
+        self.app = app
 
 
 __all__ = [
     "APIRouter",
     "FastAPI",
     "HTTPException",
-    "status",
-    "Depends",
-    "Query",
     "Header",
+    "Query",
+    "Depends",
+    "status",
+    "CORSMiddleware",
 ]
-

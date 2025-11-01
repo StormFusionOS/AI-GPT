@@ -1,4 +1,4 @@
-"""Minimal structlog stub for offline tests."""
+"""Very small structlog shim for tests."""
 from __future__ import annotations
 
 from typing import Any
@@ -11,14 +11,14 @@ class _Logger:
     def info(self, *_: Any, **__: Any) -> None:  # pragma: no cover - noop
         return None
 
-    def warning(self, *_: Any, **__: Any) -> None:  # pragma: no cover
+    def warning(self, *_: Any, **__: Any) -> None:  # pragma: no cover - noop
         return None
 
-    def error(self, *_: Any, **__: Any) -> None:  # pragma: no cover
+    def error(self, *_: Any, **__: Any) -> None:  # pragma: no cover - noop
         return None
 
 
-def get_logger(*_: Any, **__: Any) -> _Logger:  # pragma: no cover
+def get_logger(*_: Any, **__: Any) -> _Logger:  # pragma: no cover - noop
     return _Logger()
 
 

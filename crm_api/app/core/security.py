@@ -1,46 +1,21 @@
 """Security helpers for JWT handling and RBAC."""
 from __future__ import annotations
 
-import base64
-import hmac
-import json
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Iterable
 
+import jwt
 from fastapi import HTTPException, status
 
-from .config import get_settings
+
+def create_token(data: Dict[str, Any], *, expires_delta: timedelta, secret: str) -> str:
+    now = datetime.now(timezone.utc)
+    payload = {**data, "exp": now + expires_delta, "iat": now, "nbf": now}
+    return jwt.encode(payload, secret, algorithm="HS256")
 
 
-def _sign(payload: Dict[str, Any]) -> str:
-    settings = get_settings()
-    message = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
-    signature = hmac.new(settings.secret_key.encode("utf-8"), message, "sha256").digest()
-    return base64.urlsafe_b64encode(signature).decode("utf-8").rstrip("=")
-
-
-def create_token(data: Dict[str, Any], expires_delta: timedelta) -> str:
-    payload = data.copy()
-    payload["exp"] = int((datetime.now(timezone.utc) + expires_delta).timestamp())
-    token_bytes = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
-    signature = _sign(payload)
-    return base64.urlsafe_b64encode(token_bytes).decode("utf-8").rstrip("=") + "." + signature
-
-
-def decode_token(token: str) -> Dict[str, Any]:
-    try:
-        payload_b64, signature = token.split(".")
-        padded = payload_b64 + "=" * (-len(payload_b64) % 4)
-        payload_json = base64.urlsafe_b64decode(padded.encode("utf-8")).decode("utf-8")
-        payload: Dict[str, Any] = json.loads(payload_json)
-        if _sign(payload) != signature:
-            raise ValueError("Signature mismatch")
-        exp = payload.get("exp")
-        if exp is not None and datetime.now(timezone.utc).timestamp() > exp:
-            raise ValueError("Expired token")
-        return payload
-    except Exception as exc:  # pragma: no cover
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token") from exc
+def decode_token(token: str, *, secret: str) -> Dict[str, Any]:
+    return jwt.decode(token, secret, algorithms=["HS256"])
 
 
 class RoleGuard:

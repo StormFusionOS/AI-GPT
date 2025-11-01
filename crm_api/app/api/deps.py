@@ -3,8 +3,10 @@ from __future__ import annotations
 
 from typing import Dict
 
+import jwt
 from fastapi import Depends, Header, HTTPException, status
 
+from ..core.config import get_settings
 from ..core.security import RoleGuard, decode_token
 
 
@@ -17,7 +19,11 @@ async def get_jwt_claims(authorization: str = Header(..., alias="Authorization")
     if not authorization.startswith("Bearer "):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing bearer token")
     token = authorization.split(" ", 1)[1]
-    return decode_token(token)
+    settings = get_settings()
+    try:
+        return decode_token(token, secret=settings.secret_key)
+    except jwt.PyJWTError as exc:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token") from exc
 
 
 async def require_sales_claims(claims: Dict[str, str] = Depends(get_jwt_claims)) -> Dict[str, str]:

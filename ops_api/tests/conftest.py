@@ -1,9 +1,25 @@
 """Pytest fixtures for ops API."""
 from __future__ import annotations
 
+import os, sys
+
+USE_STUBS = os.getenv("USE_TEST_STUBS", "0") == "1"
+if USE_STUBS:
+    import test_stubs.fastapi_stub as fastapi_stub
+    import test_stubs.pydantic_stub as pydantic_stub
+    import test_stubs.structlog_stub as structlog_stub
+    import test_stubs.celery_stub as celery_stub
+
+    sys.modules.setdefault("fastapi", fastapi_stub)
+    sys.modules.setdefault("fastapi.middleware.cors", fastapi_stub)
+    sys.modules.setdefault("pydantic", pydantic_stub)
+    sys.modules.setdefault("structlog", structlog_stub)
+    sys.modules.setdefault("celery", celery_stub)
+    sys.modules.setdefault("celery.exceptions", celery_stub)
+    sys.modules.setdefault("celery.utils.log", celery_stub)
+
 from collections.abc import Generator
 from pathlib import Path
-import sys
 
 import importlib
 import pytest
