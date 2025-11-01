@@ -1,13 +1,25 @@
-"""Minimal Celery stub used for unit testing without external dependency."""
+"""Compact Celery stub leveraged only in tests."""
 from __future__ import annotations
 
+import sys
+import uuid
 from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Any, Callable, Dict, Optional
-import uuid
 
-from .exceptions import Ignore, Retry
-from .utils.log import get_task_logger
+
+class Ignore(Exception):
+    """Exception signalling a task should be ignored."""
+
+
+class Retry(Exception):
+    """Exception mirroring Celery's retry semantics."""
+
+    def __init__(self, exc: Exception | None = None, countdown: int = 0, kwargs: Optional[Dict[str, Any]] = None):
+        super().__init__(exc)
+        self.exc = exc
+        self.countdown = countdown
+        self.kwargs = kwargs or {}
 
 
 class _Config:
@@ -23,6 +35,8 @@ class _Config:
 
 
 class Task:
+    """Very small subset of Celery's Task base class."""
+
     abstract = False
     max_retries = 3
 
@@ -94,6 +108,8 @@ class _RegisteredTask:
 
 
 class Celery:
+    """Simple registry of tasks executed synchronously in tests."""
+
     def __init__(self, name: str, broker: str | None = None, backend: str | None = None, include: list[str] | None = None) -> None:
         self.name = name
         self.broker = broker
@@ -111,10 +127,12 @@ class Celery:
         max_retries: int = 3,
     ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
         def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
-            registered = _RegisteredTask(name=name, base=base, func=func, max_retries=max_retries)
+            registered = _RegisteredTask(name=name, base=base if bind else Task, func=func, max_retries=max_retries)
             self._tasks[name] = registered
 
             def wrapper(*args: Any, **kwargs: Any) -> Any:
+                if bind:
+                    return registered.invoke(*args, _task=base(), **kwargs)
                 return registered.invoke(*args, **kwargs)
 
             return wrapper
@@ -128,4 +146,41 @@ class Celery:
         return self._tasks[name].invoke(**task_kwargs)
 
 
-__all__ = ["Celery", "Task", "Ignore", "Retry", "get_task_logger"]
+class _Logger:
+    def info(self, *_: Any, **__: Any) -> None:  # pragma: no cover - noop
+        return None
+
+    def warning(self, *_: Any, **__: Any) -> None:  # pragma: no cover - noop
+        return None
+
+    def error(self, *_: Any, **__: Any) -> None:  # pragma: no cover - noop
+        return None
+
+
+def get_task_logger(*_: Any, **__: Any) -> _Logger:  # pragma: no cover - noop
+    return _Logger()
+
+
+@dataclass
+class crontab:
+    minute: str | int = "*"
+    hour: str | int = "*"
+    day_of_week: str | int = "*"
+    day_of_month: str | int = "*"
+    month_of_year: str | int = "*"
+
+
+module = sys.modules[__name__]
+sys.modules.setdefault("celery.exceptions", module)
+sys.modules.setdefault("celery.utils", module)
+sys.modules.setdefault("celery.utils.log", module)
+sys.modules.setdefault("celery.schedules", module)
+
+__all__ = [
+    "Celery",
+    "Task",
+    "Ignore",
+    "Retry",
+    "get_task_logger",
+    "crontab",
+]

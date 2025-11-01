@@ -3,8 +3,10 @@ from __future__ import annotations
 
 from typing import Dict, Generator
 
+import jwt
 from fastapi import Depends, Header, HTTPException
 
+from ..core.config import get_settings
 from ..db import DatabaseSession, get_session
 from ..security import RoleGuard, decode_token
 from ..services.wordpress import WordPressSite, get_wordpress_site
@@ -17,7 +19,11 @@ async def get_claims(authorization: str = Header(..., alias="Authorization")) ->
     if not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing bearer token")
     token = authorization.split(" ", 1)[1]
-    return decode_token(token)
+    settings = get_settings()
+    try:
+        return decode_token(token, secret=settings.secret_key)
+    except jwt.PyJWTError as exc:
+        raise HTTPException(status_code=401, detail="Invalid token") from exc
 
 
 async def require_ops_claims(claims: Dict[str, str] = Depends(get_claims)) -> Dict[str, str]:

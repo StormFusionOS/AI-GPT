@@ -6,6 +6,7 @@ from datetime import timedelta
 import pytest
 
 from app.api.routes import auth, status
+from app.core.config import get_settings
 from app.security import create_token
 
 
@@ -20,6 +21,11 @@ def test_status_requires_role(override_settings) -> None:
 
 
 def test_status_allows_authorised_role(override_settings) -> None:
-    token = create_token({"sub": "ops@example.com", "role": "SEO_ENGINEER"}, expires_delta=timedelta(minutes=5))
+    settings = get_settings()
+    token = create_token(
+        {"sub": "ops@example.com", "role": "SEO_ENGINEER"},
+        expires_delta=timedelta(minutes=5),
+        secret=settings.secret_key,
+    )
     payload = status.get_status(authorization=f"Bearer {token}")
     assert "checks" in payload

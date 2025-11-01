@@ -27,6 +27,14 @@ def login(email: str, password: str) -> dict[str, str]:
     if not record or record["password"] != hashed:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
     settings = get_settings()
-    access = create_token({"sub": email, "role": record["role"]}, expires_delta=timedelta(minutes=settings.access_token_expire_minutes))
-    refresh = create_token({"sub": email, "role": record["role"], "scope": "refresh"}, expires_delta=timedelta(minutes=settings.refresh_token_expire_minutes))
+    access = create_token(
+        {"sub": email, "role": record["role"]},
+        expires_delta=timedelta(minutes=settings.access_token_expire_minutes),
+        secret=settings.secret_key,
+    )
+    refresh = create_token(
+        {"sub": email, "role": record["role"], "scope": "refresh"},
+        expires_delta=timedelta(minutes=settings.refresh_token_expire_minutes),
+        secret=settings.secret_key,
+    )
     return {"access_token": access, "refresh_token": refresh, "token_type": "bearer"}
