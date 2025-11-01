@@ -11,6 +11,11 @@ try:  # pragma: no cover - optional redis import for production usage
 except Exception:  # pragma: no cover
     redis = None  # type: ignore
 
+if redis is not None:  # pragma: no cover - optional redis import
+    RedisError = redis.exceptions.RedisError  # type: ignore[attr-defined]
+else:  # pragma: no cover - fallback when redis is unavailable
+    RedisError = Exception
+
 from app.core.config import get_settings
 
 
@@ -111,10 +116,14 @@ class IdempotencyStore:
     def reset(self) -> None:
         if self._client is not None:
             # best effort clean-up
-            for suffix in ("reserved", "inflight", "done"):
-                pattern = self._redis_key("*", suffix)
-                for key in self._client.scan_iter(match=pattern):  # pragma: no cover - optional
-                    self._client.delete(key)
+            try:
+                for suffix in ("reserved", "inflight", "done"):
+                    pattern = self._redis_key("*", suffix)
+                    for key in self._client.scan_iter(match=pattern):  # pragma: no cover - optional
+                        self._client.delete(key)
+            except RedisError:
+                # redis unavailable; fall back to in-memory state only
+                self._client = None
         with self._lock:
             self._reserved.clear()
             self._inflight.clear()
